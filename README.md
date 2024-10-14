@@ -3,3 +3,74 @@
 Play & cut videos in the terminal
 
 [demo.webm](https://github.com/user-attachments/assets/89d099d0-21fe-482b-b793-03fa053c79ad)
+
+## Building
+
+### Linux
+
+`vic` is dynamically linked with `chafa`. To install `chafa`:
+
+```
+apt-get install libglib2.0-dev
+curl 'https://hpjansson.org/chafa/releases/chafa-1.14.4.tar.xz' -O
+tar xf chafa-1.14.4.tar.xz
+cd chafa-1.14.4
+./configure --without-tools
+make
+sudo make install
+sudo ldconfig
+```
+
+Once `chafa` is installed, you can build the Rust project with `cargo build`.
+
+Make sure everything is compiled and linked correctly by running `cargo test`.
+
+You can find the built binary at `target/debug/vic` or `target/release/vic`, or you can use `cargo run` as an alias for `vic`.
+
+`vic` requires `ffmpeg` to be on `$PATH` during runtime.
+
+## Static binaries
+
+Coming soon!
+
+## Usage
+
+```
+vic <filepath> [-w <int, default 40>]
+               [--hide-controls]
+               [--help|--version]
+```
+
+### Examples
+
+```
+vic video.mp4
+vic video.mp4 -w=9999 --hide-controls
+vic http://example.com/video.avi -w 20
+```
+
+### Options
+
+```
+-w <int>          Max output width, in columns.
+                  Use -w 9999 for fullscreen.
+                  Defaults to 40.
+--hide-controls   Hide helper text below the video.
+```
+
+### Controls
+
+```
+[ segment mode ]
+
+  space ... play/pause
+  j/l ..... seek back/forwards
+  s ....... remove/keep segment
+  m ....... make marker
+  q ....... finish
+
+[ marker mode ]
+
+  M ....... delete marker
+  J/L ..... goto prev/next marker
+```
