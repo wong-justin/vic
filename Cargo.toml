@@ -25,10 +25,11 @@ edition = "2021"
 
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html
 [dependencies]
-# chafa-sys = { git = "https://github.com/wong-justin/chafa-rust.git" } # tag = "0.1.0", or rev = "0c12ab34..."
-  # maybe chafa-sys = { path = "chafa-sys" }
-  #
+chafa-sys = { path = "chafa-sys" }
   # justification: chafa is vital because it creates the main UI, pretty terminal graphics
+  #
+  # refactor to separate repo once it's robust enough to share:
+  # chafa-sys = { git = "https://github.com/wong-justin/chafa-rust.git" } # tag = "0.1.0", or rev = "0c12ab34..."
 
 crossterm = { version = "= 0.23.2", features = ["event-stream"] }
   # justification: I don't want to handle cross-platform terminal quirks on my own
