@@ -8,7 +8,7 @@ Play & cut videos in the terminal
 
 ### Linux
 
-`vic` is dynamically linked with `[chafa](https://hpjansson.org/chafa/)`, a C library that makes pretty pictures. To install `chafa`:
+`vic` is dynamically linked with [`chafa`](https://hpjansson.org/chafa/), a C library that makes pretty pictures. To install `chafa`:
 
 ```
 apt-get install libglib2.0-dev
@@ -27,7 +27,7 @@ Make sure everything is compiled and linked correctly by running `cargo test`.
 
 You can find the built binary at `target/debug/vic`, or you can use `cargo run` as an alias for `vic`.
 
-`vic` requires `[ffmpeg](https://ffmpeg.org//download.html)` to be on `$PATH` during runtime.
+`vic` requires [`ffmpeg`](https://ffmpeg.org//download.html) to be on `$PATH` during runtime.
 
 ## Static binaries
 
