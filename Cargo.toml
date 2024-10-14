@@ -1,0 +1,58 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+# [workspace]
+# members = ["chafa-sys"]
+
+
+[package]
+name = "vic" 
+  # clark, vide, vedi, vicu ... ?
+version = "0.2.0"
+edition = "2021"
+  # https://doc.rust-lang.org/edition-guide/rust-2021/index.html
+  # 2015 edition == 1.0
+  # 2018 edition == 1.31.0
+  # 2021 edition == 1.56.0
+  # 2024 edition anticipated to be 1.82.0
+
+
+# [[bin]]
+# edition = "2021"
+# name = "vic"
+# path = "src/main.rs"
+
+
+# https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html
+[dependencies]
+# chafa-sys = { git = "https://github.com/wong-justin/chafa-rust.git" } # tag = "0.1.0", or rev = "0c12ab34..."
+  # maybe chafa-sys = { path = "chafa-sys" }
+  #
+  # justification: chafa is vital because it creates the main UI, pretty terminal graphics
+
+crossterm = { version = "= 0.23.2", features = ["event-stream"] }
+  # justification: I don't want to handle cross-platform terminal quirks on my own
+
+pico-args =  { version = "= 0.5.0", features = ["eq-separator"] } 
+  # justification: don't want to waste time and energy reinventing arg parsing.
+  # this is declarative, which is more maintainable than hand-rolled imperative parsing.
+  # this is a small dependency
+
+log = "= 0.4.20"
+  # justification: logs are necessary since TUI blocks stderr/stdout.
+  # this is a small dependency
+
+# tokio = { version = "= 1.38.1", features = ["full"] }
+  # justification: need async, else heavy CPU processing (ffmpeg/chafa) will block UI and feel terrible. tokio is the most widely supported and talked about async lib, so I should be able to learn tokio the easiest
+  #
+  # 1.38.1 is last version of tokio using rust-version 1.65.0
+
+
+# rejected:
+#
+# video-rs = "= 0.4.0" # requires lots of libav<> local packages, and runtime still breaks with "invalid data"
+# opencv = { version = "= 0.88.0", default-features = false, features = ["videoio"] } # video, videostab, 
+#   opencv 0.88.0 is last version using rust-version 1.65.0
+#   nvm, opencv doesn't build on my machine anyways
+#
+# so just use ffmpeg on $PATH instead of these video decoding libs
