@@ -68,9 +68,8 @@ vic http://example.com/video.avi -w 20
   s ....... remove/keep segment
   m ....... make marker
   q ....... finish
-
-[ marker mode ]
-
-  M ....... delete marker
-  J/L ..... goto prev/next marker
 ```
+
+## Notes
+
+Here's a blog post: https://wonger.dev/posts/chafa-ffmpeg-progress
