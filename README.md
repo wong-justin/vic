@@ -55,6 +55,7 @@ vic http://example.com/video.avi -w 20
 -w <int>          Max output width, in columns.
                   Use -w 9999 for fullscreen.
                   Defaults to 40.
+
 --hide-controls   Hide helper text below the video.
 ```
 
@@ -65,7 +66,6 @@ vic http://example.com/video.avi -w 20
 
   space ... play/pause
   j/l ..... seek back/forwards
-  s ....... remove/keep segment
   m ....... make marker
   q ....... finish
 ```
@@ -73,3 +73,11 @@ vic http://example.com/video.avi -w 20
 ## Notes
 
 Here's a blog post: https://wonger.dev/posts/chafa-ffmpeg-progress
+
+My main focus for now is fiddling with GitHub Actions and building static binaries.
+
+The other big task is to add audio.
+
+There's several quality-of-life improvements to work on.
+
+Pull requests welcome :)
