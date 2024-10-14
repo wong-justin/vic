@@ -31,7 +31,7 @@ You can find the built binary at `target/debug/vic`, or you can use `cargo run` 
 
 ## Static binaries
 
-Coming soon!
+Coming soon! See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
 
 ## Usage
 
