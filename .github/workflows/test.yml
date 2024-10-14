@@ -1,0 +1,43 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-24.04
+
+    steps:
+    
+    - name: Install glib dev files
+      run:
+        sudo apt-get install libglib2.0-dev
+
+    - name: Download chafa source
+      run: >
+        cd /tmp
+        && curl 'https://hpjansson.org/chafa/releases/chafa-1.14.4.tar.xz' -O
+        && tar xf chafa-1.14.4.tar.xz
+
+    - name: Build chafa
+      run: >
+        cd /tmp/chafa-1.14.4
+        && ./configure --without-tools
+        && make
+        && sudo make install
+        && sudo ldconfig
+    
+    - uses: actions/checkout@v4   
+    
+    - name: Build
+      run: cargo build --verbose
+      
+    - name: Run tests
+      run: cargo test --verbose
