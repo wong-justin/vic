@@ -209,6 +209,7 @@ struct FrameIterator {
     output_rows: Rows,    // aka lines
     stdout: std::process::ChildStdout, // pixels get piped to here
     // stderr: std::process::ChildStderr,
+    // cur_frame_number: u32,
     pixel_buffer: Vec<u8>,
     num_frames_rendered: u32, // for debugging
 }
@@ -527,7 +528,7 @@ struct CliArgs {
 //     A,
 //     B,
 // }
-// 
+//
 // TODO: custom errors and better error handling
 // enum VicError {
 //     BadFfprobe,
@@ -719,7 +720,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
                 KeyCode::Char(' ') => {
                     m.paused = !m.paused;
                     if !m.paused {
-                        m.start = std::time::Instant::now();
+                        m.hovering.mode = HoverMode::Segments;
                     }
                 }
                 KeyCode::Char('h') => {
@@ -745,16 +746,77 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
                     m.frame = m.frame_iterator.take_frame();
                 }
                 KeyCode::Char('J') => {
-                    // goto nearest backwards timestamp
+                    // enter marker mode and goto nearest backwards timestamp
+                    //
+                    // segment    0     1     2
+                    //         ┌─────┬─────┬──────┐
+                    //         └─────┴─────┴──────┘
+                    // marker        0     1
+                    //
+                    let new_position = m.hovering.position as i32 - 1;
+                    match new_position >= 0 {
+                        false => (),
+                        true => {
+                            m.hovering = Hovering {
+                                mode: HoverMode::Markers,
+                                position: new_position as usize,
+                            };
+                            let timestamp: SecondsFloat = m.markers[new_position as usize];
+                            m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
+                            m.frame_iterator.goto_timestamp(timestamp).unwrap();
+                            m.frame = m.frame_iterator.take_frame();
+                            m.paused = true;
+                        }
+                    }
                 }
                 KeyCode::Char('L') => {
-                    // goto nearest forwards timestamp
+                    // enter marker mode and goto nearest forwards timestamp
+                    //
+                    // segment    0     1     2
+                    //         ┌─────┬─────┬──────┐
+                    //         └─────┴─────┴──────┘
+                    // marker        0     1
+                    //
+                    let new_position = match m.hovering.mode {
+                        HoverMode::Markers => m.hovering.position + 1,
+                        HoverMode::Segments => m.hovering.position,
+                    };
+                    match new_position < m.markers.len() {
+                        false => (),
+                        true => {
+                            m.hovering = Hovering {
+                                mode: HoverMode::Markers,
+                                position: new_position,
+                            };
+                            let timestamp: SecondsFloat = m.markers[new_position];
+                            m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
+                            m.frame_iterator.goto_timestamp(timestamp).unwrap();
+                            m.frame = m.frame_iterator.take_frame();
+                            m.paused = true;
+                        }
+                    };
                 }
                 KeyCode::Char('m') => {
-                    let timestamp: SecondsFloat =
-                        m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-                    m.markers.push(timestamp);
-                    log::info!("{:.3}", timestamp);
+                    // create new marker at current timestamp
+                    match m.hovering.mode {
+                        HoverMode::Markers => (),
+                        HoverMode::Segments => {
+                            let timestamp: SecondsFloat =
+                                m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+                            m.markers.push(timestamp);
+                            log::info!("{:.3}", timestamp);
+                        }
+                    }
+                }
+                KeyCode::Char('M') => {
+                    // delete current marker and enter segments mode
+                    match m.hovering.mode {
+                        HoverMode::Segments => (),
+                        HoverMode::Markers => {
+                            m.markers.remove(m.hovering.position);
+                            m.hovering.mode = HoverMode::Segments;
+                        }
+                    }
                 }
                 KeyCode::Char('.') => {
                     m.frame = m.frame_iterator.take_frame();
@@ -1021,9 +1083,8 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
             HoverMode::Segments => "     m = make marker           ",
             HoverMode::Markers => "     M = remove marker         ",
         }),
-        // TODO:
-        // MoveToNextLine(1),
-        // Print("   J/L = prev/next marker    "),
+        MoveToNextLine(1),
+        Print("   J/L = prev/next marker    "),
         MoveToNextLine(1),
         // TODO: if m.current_segment.is_removed, then text = "keep segment"
         // Print("     s = remove segment        "),
