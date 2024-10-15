@@ -755,6 +755,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
             // now we know the next frame number to render
             m.frame = m.frame_iterator.skip_some_frames(whole_elapsed_frames - 1);
             m.frame_number += whole_elapsed_frames as u32;
+            update_if_moved_past_segment(m);
         }
     }
 
@@ -786,6 +787,8 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
     m.prev_instant = now;
     return UpdateResult::Continue;
 }
+
+// TODO: make these functions associated with model using impl Model {}
 
 fn frames_since_prev_instant(m: &mut Model) -> u32 {
     // find how many frames elapsed since last tick,
@@ -847,16 +850,50 @@ fn toggle_controls_visibility(m: &mut Model) {
 // note: any function that modifies playerhead position aka m.frame_number in Segment mode
 // must check if segment number has changed
 
+fn update_if_moved_past_segment(m: &mut Model) {
+    //
+    // segment    0     1     2
+    //         ┌─────┬─────┬──────┐
+    //         └─────┴─────┴──────┘
+    // marker        0     1
+    //
+    let cur_timestamp = m.frame_number as f64 * m.VIDEO_METADATA.seconds_per_frame;
+    let next_index = m.hovered_item.position;
+    let mut upcoming_markers = m.markers[next_index..].iter();
+    while let Some(next_timestamp) = upcoming_markers.next() {
+        match cur_timestamp > *next_timestamp {
+            true => m.hovered_item.position += 1,
+            false => break,
+        }
+    }
+}
+
+fn update_if_moved_behind_segment(m: &mut Model) {
+    //
+    // segment    0     1     2
+    //         ┌─────┬─────┬──────┐
+    //         └─────┴─────┴──────┘
+    // marker        0     1
+    //
+    let cur_timestamp = m.frame_number as f64 * m.VIDEO_METADATA.seconds_per_frame;
+    let prev_index = m.hovered_item.position;
+    let mut preceding_markers = m.markers[..prev_index].iter().rev();
+    while let Some(prev_timestamp) = preceding_markers.next() {
+        match cur_timestamp < *prev_timestamp {
+            true => m.hovered_item.position -= 1,
+            false => break,
+        }
+    }
+}
+
 fn seek_backwards_15s(m: &mut Model) {
     let frames_to_backtrack = (m.VIDEO_METADATA.fps * 15.0) as u32;
     m.frame_number = std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
     let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
     m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
-    // TODO: update current segment
-    // let old_position = m.hovering.position;
-    // let preceding_markers
-    // while let Some(other_timestamp) = preceding_markers.next() {
+    update_if_moved_behind_segment(m);
+    m.hovered_item.mode = HoverMode::Segments;
 }
 
 fn seek_forwards_15s(m: &mut Model) {
@@ -865,8 +902,8 @@ fn seek_forwards_15s(m: &mut Model) {
     let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
     m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
-    // TODO: update current segment
-    // let upcoming_markers =
+    update_if_moved_past_segment(m);
+    m.hovered_item.mode = HoverMode::Segments;
 }
 
 fn goto_prev_marker(m: &mut Model) {
@@ -949,6 +986,8 @@ fn advance_one_frame(m: &mut Model) {
         true => {
             m.frame = m.frame_iterator.skip_some_frames(1);
             m.frame_number += 1;
+            update_if_moved_past_segment(m);
+            m.hovered_item.mode = HoverMode::Segments;
         }
     }
 }
