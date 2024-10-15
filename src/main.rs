@@ -493,13 +493,13 @@ impl FrameIterator {
         // but also without calling chafa.draw each frame as you would in loop { take_frame() }
         //
         // If skipping many frames,
-        // you should probably just start a new ffmpeg process with .goto_position()
+        // you should probably just start a new ffmpeg process with .goto_timestamp()
         for _ in 0..num_frames {
             self.stdout.read_exact(&mut self.pixel_buffer);
         }
     }
 
-    fn goto_position(&mut self, timestamp: SecondsFloat) -> Result<(), Box<dyn Error>> {
+    fn goto_timestamp(&mut self, timestamp: SecondsFloat) -> Result<(), Box<dyn Error>> {
         // Start new process at any position in video.
         // This should be faster than reading far ahead in the old process,
         // and this enables "backward seeking" too.
@@ -732,16 +732,16 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
                     let frames_to_backtrack = 60 * 6;
                     m.frame_number =
                         std::cmp::max(m.frame_number as i32 - frames_to_backtrack, 0) as u32;
-                    let new_position = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-                    m.frame_iterator.goto_position(new_position).unwrap();
+                    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+                    m.frame_iterator.goto_timestamp(timestamp).unwrap();
                     m.frame = m.frame_iterator.take_frame();
                 }
                 KeyCode::Char('l') => {
                     // skip ahead
                     let frames_to_skip = 60 * 6;
                     m.frame_number += frames_to_skip;
-                    let new_position = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-                    m.frame_iterator.goto_position(new_position).unwrap();
+                    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+                    m.frame_iterator.goto_timestamp(timestamp).unwrap();
                     m.frame = m.frame_iterator.take_frame();
                 }
                 KeyCode::Char('J') => {
