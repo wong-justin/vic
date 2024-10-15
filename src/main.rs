@@ -157,7 +157,7 @@ struct Model {
     paused: bool,
     markers: Vec<SecondsFloat>,
     speed: f32,
-    hovering: Hovering, // current marker or segment
+    hovered_item: Hovering, // current marker or segment
     hide_controls: bool,
     needs_to_clear: bool, // if screen resized, we should clear janky screen artifacts
 
@@ -656,7 +656,7 @@ fn init() -> Result<Model, String> {
         frame_number: 0,
         speed: 1.0,
         markers: Vec::<SecondsFloat>::new(),
-        hovering: Hovering {
+        hovered_item: Hovering {
             mode: HoverMode::Segments,
             position: 0,
         },
@@ -834,7 +834,7 @@ fn frames_since_prev_instant(m: &mut Model) -> u32 {
 fn toggle_paused(m: &mut Model) {
     m.paused = !m.paused;
     if !m.paused {
-        m.hovering.mode = HoverMode::Segments;
+        m.hovered_item.mode = HoverMode::Segments;
     }
 }
 
@@ -877,11 +877,11 @@ fn goto_prev_marker(m: &mut Model) {
     //         └─────┴─────┴──────┘
     // marker        0     1
     //
-    let new_position = m.hovering.position as i32 - 1;
+    let new_position = m.hovered_item.position as i32 - 1;
     match new_position >= 0 {
         false => (),
         true => {
-            m.hovering = Hovering {
+            m.hovered_item = Hovering {
                 mode: HoverMode::Markers,
                 position: new_position as usize,
             };
@@ -901,14 +901,14 @@ fn goto_next_marker(m: &mut Model) {
     //         └─────┴─────┴──────┘
     // marker        0     1
     //
-    let new_position = match m.hovering.mode {
-        HoverMode::Markers => m.hovering.position + 1,
-        HoverMode::Segments => m.hovering.position,
+    let new_position = match m.hovered_item.mode {
+        HoverMode::Markers => m.hovered_item.position + 1,
+        HoverMode::Segments => m.hovered_item.position,
     };
     match new_position < m.markers.len() {
         false => (),
         true => {
-            m.hovering = Hovering {
+            m.hovered_item = Hovering {
                 mode: HoverMode::Markers,
                 position: new_position,
             };
@@ -922,7 +922,7 @@ fn goto_next_marker(m: &mut Model) {
 
 fn create_marker(m: &mut Model) {
     // create new marker at current timestamp
-    match m.hovering.mode {
+    match m.hovered_item.mode {
         HoverMode::Markers => (),
         HoverMode::Segments => {
             let timestamp: SecondsFloat = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
@@ -934,11 +934,11 @@ fn create_marker(m: &mut Model) {
 
 fn delete_marker(m: &mut Model) {
     // delete current marker and enter segments mode
-    match m.hovering.mode {
+    match m.hovered_item.mode {
         HoverMode::Segments => (),
         HoverMode::Markers => {
-            m.markers.remove(m.hovering.position);
-            m.hovering.mode = HoverMode::Segments;
+            m.markers.remove(m.hovered_item.position);
+            m.hovered_item.mode = HoverMode::Segments;
         }
     }
 }
@@ -1093,18 +1093,18 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
     queue!(
         outbuf,
         MoveToColumn(m.frame_iterator.output_cols - 12),
-        Print(match m.hovering.mode {
+        Print(match m.hovered_item.mode {
             HoverMode::Segments =>
-                format!("segment {} of {}", m.hovering.position + 1, num_segments),
+                format!("segment {} of {}", m.hovered_item.position + 1, num_segments),
             // HoverMode::Segments => format!("     {} segments", num_segments),
-            HoverMode::Markers => format!(" marker {} of {}", m.hovering.position + 1, num_markers),
+            HoverMode::Markers => format!(" marker {} of {}", m.hovered_item.position + 1, num_markers),
         }),
         MoveToNextLine(1),
     );
 
     queue!(
         outbuf,
-        Print(match m.hovering.mode {
+        Print(match m.hovered_item.mode {
             HoverMode::Segments => "     m = make marker           ",
             HoverMode::Markers => "     M = remove marker         ",
         }),
