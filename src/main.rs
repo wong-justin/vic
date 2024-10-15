@@ -705,11 +705,11 @@ fn init() -> Result<Model, String> {
 // --- UPDATE --- //
 
 fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
-    // --- respond to terminal events --- //
 
     m.needs_to_clear = false;
     match terminal_event {
         Event::Key(keyevent) => {
+
             if (keyevent.modifiers == KeyModifiers::CONTROL && keyevent.code == KeyCode::Char('c'))
                 || keyevent.code == KeyCode::Char('q')
             {
@@ -717,111 +717,15 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
             }
 
             match keyevent.code {
-                KeyCode::Char(' ') => {
-                    m.paused = !m.paused;
-                    if !m.paused {
-                        m.hovering.mode = HoverMode::Segments;
-                    }
-                }
-                KeyCode::Char('h') => {
-                    m.hide_controls = !m.hide_controls;
-                    log::info!("hide controls? {:?}", m.hide_controls);
-                    m.needs_to_clear = true; // controls will still show at bottom unless cleared/drawn over
-                }
-                KeyCode::Char('j') => {
-                    // skip backwards
-                    let frames_to_backtrack = (m.VIDEO_METADATA.fps * 15.0) as u32;
-                    m.frame_number =
-                        std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
-                    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-                    m.frame_iterator.goto_timestamp(timestamp).unwrap();
-                    m.frame = m.frame_iterator.take_frame();
-                }
-                KeyCode::Char('l') => {
-                    // skip ahead
-                    let frames_to_skip = (m.VIDEO_METADATA.fps * 15.0) as u32;
-                    m.frame_number += frames_to_skip;
-                    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-                    m.frame_iterator.goto_timestamp(timestamp).unwrap();
-                    m.frame = m.frame_iterator.take_frame();
-                }
-                KeyCode::Char('J') => {
-                    // enter marker mode and goto nearest backwards timestamp
-                    //
-                    // segment    0     1     2
-                    //         ┌─────┬─────┬──────┐
-                    //         └─────┴─────┴──────┘
-                    // marker        0     1
-                    //
-                    let new_position = m.hovering.position as i32 - 1;
-                    match new_position >= 0 {
-                        false => (),
-                        true => {
-                            m.hovering = Hovering {
-                                mode: HoverMode::Markers,
-                                position: new_position as usize,
-                            };
-                            let timestamp: SecondsFloat = m.markers[new_position as usize];
-                            m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
-                            m.frame_iterator.goto_timestamp(timestamp).unwrap();
-                            m.frame = m.frame_iterator.take_frame();
-                            m.paused = true;
-                        }
-                    }
-                }
-                KeyCode::Char('L') => {
-                    // enter marker mode and goto nearest forwards timestamp
-                    //
-                    // segment    0     1     2
-                    //         ┌─────┬─────┬──────┐
-                    //         └─────┴─────┴──────┘
-                    // marker        0     1
-                    //
-                    let new_position = match m.hovering.mode {
-                        HoverMode::Markers => m.hovering.position + 1,
-                        HoverMode::Segments => m.hovering.position,
-                    };
-                    match new_position < m.markers.len() {
-                        false => (),
-                        true => {
-                            m.hovering = Hovering {
-                                mode: HoverMode::Markers,
-                                position: new_position,
-                            };
-                            let timestamp: SecondsFloat = m.markers[new_position];
-                            m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
-                            m.frame_iterator.goto_timestamp(timestamp).unwrap();
-                            m.frame = m.frame_iterator.take_frame();
-                            m.paused = true;
-                        }
-                    };
-                }
-                KeyCode::Char('m') => {
-                    // create new marker at current timestamp
-                    match m.hovering.mode {
-                        HoverMode::Markers => (),
-                        HoverMode::Segments => {
-                            let timestamp: SecondsFloat =
-                                m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-                            m.markers.push(timestamp);
-                            log::info!("{:.3}", timestamp);
-                        }
-                    }
-                }
-                KeyCode::Char('M') => {
-                    // delete current marker and enter segments mode
-                    match m.hovering.mode {
-                        HoverMode::Segments => (),
-                        HoverMode::Markers => {
-                            m.markers.remove(m.hovering.position);
-                            m.hovering.mode = HoverMode::Segments;
-                        }
-                    }
-                }
-                KeyCode::Char('.') => {
-                    m.frame = m.frame_iterator.take_frame();
-                    m.frame_number += 1;
-                }
+                KeyCode::Char(' ') => toggle_paused(m),
+                KeyCode::Char('h') => toggle_controls_visibility(m),
+                KeyCode::Char('j') => seek_backwards_15s(m),
+                KeyCode::Char('l') => seek_forwards_15s(m),
+                KeyCode::Char('J') => goto_prev_marker(m),
+                KeyCode::Char('L') => goto_next_marker(m),
+                KeyCode::Char('m') => create_marker(m),
+                KeyCode::Char('M') => delete_marker(m),
+                KeyCode::Char('.') => advance_one_frame(m),
                 _ => (),
             };
         }
@@ -844,14 +748,15 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
 
     // example converting elapsed ms to elapsed frames:
     //
-    // 40ms elapsed   30 frames   1 second    1.2 frames
-    // ------------ * --------- * -------- =    elapsed
-    //                1 second    1000 ms
-    // or:
+    // 0.040 secs elapsed   30 frames   1.2 frames
+    // ------------------ * --------- =   elapsed
+    //                       1 second
     //
-    // 60ms elapsed   60 frames   1 second    3.6 frames
-    // ------------ * --------- * -------- =    elapsed
-    //                1 second    1000 ms
+    // whole_frames_elapsed = 1 frame
+    //
+    //                0.2 frames    1 second
+    // rounding_err = ---------- * --------- = 0.007 seconds
+    //                             30 frames
     //
     let elapsed_secs = (now - m.prev_instant).as_secs_f64();
 
@@ -928,6 +833,137 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
     m.prev_instant = now;
     return UpdateResult::Continue;
 }
+
+fn toggle_paused(m: &mut Model) {
+    m.paused = !m.paused;
+    if !m.paused {
+        m.hovering.mode = HoverMode::Segments;
+    }
+}
+
+fn toggle_controls_visibility(m: &mut Model) {
+    m.hide_controls = !m.hide_controls;
+    log::info!("hide controls? {:?}", m.hide_controls);
+    m.needs_to_clear = true; // controls will still show at bottom unless cleared/drawn over
+}
+
+fn seek_backwards_15s(m: &mut Model) {
+    let frames_to_backtrack = (m.VIDEO_METADATA.fps * 15.0) as u32;
+    m.frame_number = std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
+    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    m.frame_iterator.goto_timestamp(timestamp).unwrap();
+    m.frame = m.frame_iterator.take_frame();
+
+    // TODO: update current segment
+    // let old_position = m.hovering.position;
+    // let preceding_markers
+    // while let Some(other_timestamp) = preceding_markers.next() {
+}
+
+fn seek_forwards_15s(m: &mut Model) {
+    let frames_to_skip = (m.VIDEO_METADATA.fps * 15.0) as u32;
+    m.frame_number += frames_to_skip;
+    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    m.frame_iterator.goto_timestamp(timestamp).unwrap();
+    m.frame = m.frame_iterator.take_frame();
+
+    // TODO: update current segment
+    // let upcoming_markers =
+}
+
+fn goto_prev_marker(m: &mut Model) {
+    // enter marker mode and goto nearest backwards timestamp
+    //
+    // segment    0     1     2
+    //         ┌─────┬─────┬──────┐
+    //         └─────┴─────┴──────┘
+    // marker        0     1
+    //
+    let new_position = m.hovering.position as i32 - 1;
+    match new_position >= 0 {
+        false => (),
+        true => {
+            m.hovering = Hovering {
+                mode: HoverMode::Markers,
+                position: new_position as usize,
+            };
+            let timestamp: SecondsFloat = m.markers[new_position as usize];
+            m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
+            m.frame_iterator.goto_timestamp(timestamp).unwrap();
+            m.frame = m.frame_iterator.take_frame();
+            m.paused = true;
+        }
+    }
+}
+
+fn goto_next_marker(m: &mut Model) {
+    // enter marker mode and goto nearest forwards timestamp
+    //
+    // segment    0     1     2
+    //         ┌─────┬─────┬──────┐
+    //         └─────┴─────┴──────┘
+    // marker        0     1
+    //
+    let new_position = match m.hovering.mode {
+        HoverMode::Markers => m.hovering.position + 1,
+        HoverMode::Segments => m.hovering.position,
+    };
+    match new_position < m.markers.len() {
+        false => (),
+        true => {
+            m.hovering = Hovering {
+                mode: HoverMode::Markers,
+                position: new_position,
+            };
+            let timestamp: SecondsFloat = m.markers[new_position];
+            m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
+            m.frame_iterator.goto_timestamp(timestamp).unwrap();
+            m.frame = m.frame_iterator.take_frame();
+            m.paused = true;
+        }
+    };
+}
+
+fn create_marker(m: &mut Model) {
+    // create new marker at current timestamp
+    //
+    match m.hovering.mode {
+        HoverMode::Markers => (),
+        HoverMode::Segments => {
+            let timestamp: SecondsFloat = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+            m.markers.push(timestamp);
+            log::info!("{:.3}", timestamp);
+        }
+    }
+}
+
+fn delete_marker(m: &mut Model) {
+    // delete current marker and enter segments mode
+    //
+    match m.hovering.mode {
+        HoverMode::Segments => (),
+        HoverMode::Markers => {
+            m.markers.remove(m.hovering.position);
+            m.hovering.mode = HoverMode::Segments;
+        }
+    }
+}
+
+fn advance_one_frame(m: &mut Model) {
+    match m.paused {
+        false => (),
+        true => {
+            m.frame = m.frame_iterator.take_frame();
+            m.frame_number += 1;
+        }
+    }
+}
+
+
+
+
+
+
 
 // --- VIEW --- //
 
@@ -1070,7 +1106,8 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         outbuf,
         MoveToColumn(m.frame_iterator.output_cols - 12),
         Print(match m.hovering.mode {
-            HoverMode::Segments => format!("segment {} of {}", m.hovering.position + 1, num_segments),
+            HoverMode::Segments =>
+                format!("segment {} of {}", m.hovering.position + 1, num_segments),
             // HoverMode::Segments => format!("     {} segments", num_segments),
             HoverMode::Markers => format!(" marker {} of {}", m.hovering.position + 1, num_markers),
         }),
