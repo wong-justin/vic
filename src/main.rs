@@ -729,16 +729,16 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
                 }
                 KeyCode::Char('j') => {
                     // skip backwards
-                    let frames_to_backtrack = 60 * 6;
+                    let frames_to_backtrack = (m.VIDEO_METADATA.fps * 15.0) as u32;
                     m.frame_number =
-                        std::cmp::max(m.frame_number as i32 - frames_to_backtrack, 0) as u32;
+                        std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
                     let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
                     m.frame_iterator.goto_timestamp(timestamp).unwrap();
                     m.frame = m.frame_iterator.take_frame();
                 }
                 KeyCode::Char('l') => {
                     // skip ahead
-                    let frames_to_skip = 60 * 6;
+                    let frames_to_skip = (m.VIDEO_METADATA.fps * 15.0) as u32;
                     m.frame_number += frames_to_skip;
                     let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
                     m.frame_iterator.goto_timestamp(timestamp).unwrap();
