@@ -188,7 +188,7 @@ enum HoverMode {
 
 struct Hovering {
     mode: HoverMode,
-    position: u32, // assuming less than u32::MAX = 4_294_967_296 markers/segments
+    position: usize, // an index in a vec of markers/segments
 }
 
 type SecondsFloat = f64; // to indicate when we're using units of time
@@ -656,7 +656,7 @@ fn init() -> Result<Model, String> {
         markers: Vec::<SecondsFloat>::new(),
         hovering: Hovering {
             mode: HoverMode::Segments,
-            position: 1,
+            position: 0,
         },
         terminal_cols: cols,
         terminal_rows: rows,
@@ -1008,9 +1008,9 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         outbuf,
         MoveToColumn(m.frame_iterator.output_cols - 12),
         Print(match m.hovering.mode {
-            // HoverMode::Segments => format!("segment {} of {}", m.hovering.position, num_segments),
-            HoverMode::Segments => format!("     {} segments", num_segments),
-            HoverMode::Markers => format!(" marker {} of {}", m.hovering.position, num_markers),
+            HoverMode::Segments => format!("segment {} of {}", m.hovering.position + 1, num_segments),
+            // HoverMode::Segments => format!("     {} segments", num_segments),
+            HoverMode::Markers => format!(" marker {} of {}", m.hovering.position + 1, num_markers),
         }),
         MoveToNextLine(1),
     );
