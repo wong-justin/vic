@@ -488,7 +488,7 @@ impl FrameIterator {
         return view_string;
     }
 
-    fn skip_some_frames(&mut self, num_frames: u32) {
+    fn skip_some_frames(&mut self, num_frames: u32) -> String {
         // When you only want to advance a few frames,
         // without spawning a new ffmpeg process,
         // but also without calling chafa.draw each frame as you would in loop { take_frame() }
@@ -498,16 +498,17 @@ impl FrameIterator {
         for _ in 0..num_frames {
             self.stdout.read_exact(&mut self.pixel_buffer);
         }
+        return self.take_frame();
     }
 
-    fn goto_timestamp(&mut self, timestamp: SecondsFloat) -> Result<(), Box<dyn Error>> {
+    fn goto_timestamp(&mut self, timestamp: SecondsFloat) -> Result<String, Box<dyn Error>> {
         // Start new process at any position in video.
         // This should be faster than reading far ahead in the old process,
         // and this enables "backward seeking" too.
 
         let new_stdout = FrameIterator::_create_decoding_process(&self.video_path, timestamp)?;
         self.stdout = new_stdout;
-        Ok(())
+        Ok(self.take_frame())
     }
 }
 
@@ -705,11 +706,9 @@ fn init() -> Result<Model, String> {
 // --- UPDATE --- //
 
 fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
-
     m.needs_to_clear = false;
     match terminal_event {
         Event::Key(keyevent) => {
-
             if (keyevent.modifiers == KeyModifiers::CONTROL && keyevent.code == KeyCode::Char('c'))
                 || keyevent.code == KeyCode::Char('q')
             {
@@ -744,66 +743,20 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
         return UpdateResult::Continue;
     }
 
-    // --- find the next frame number to render --- //
-
-    // example converting elapsed ms to elapsed frames:
-    //
-    // 0.040 secs elapsed   30 frames   1.2 frames
-    // ------------------ * --------- =   elapsed
-    //                       1 second
-    //
-    // whole_frames_elapsed = 1 frame
-    //
-    //                0.2 frames    1 second
-    // rounding_err = ---------- * --------- = 0.007 seconds
-    //                             30 frames
-    //
-    let elapsed_secs = (now - m.prev_instant).as_secs_f64();
-
-    // how many frames should have passed since last tick; sometimes 0, usually 1 or more
-    let mut whole_elapsed_frames: u32 = (elapsed_secs * m.VIDEO_METADATA.fps).floor() as u32;
-
-    // account for accumulated deltas from rounding down.
-    // the leftover time eventually adds up to frame's worth of compensated time
-    // (like an extra day in a leap year)
-    let rounding_err: SecondsFloat =
-        elapsed_secs - (whole_elapsed_frames as f64 * m.VIDEO_METADATA.seconds_per_frame);
-    m.accumulated_time += rounding_err;
-    let need_leap_frame = m.accumulated_time > m.VIDEO_METADATA.seconds_per_frame;
-    if need_leap_frame {
-        whole_elapsed_frames += 1;
-        m.accumulated_time -= m.VIDEO_METADATA.seconds_per_frame;
-    }
-
-    // log::info!("{:?} {:?} {:?} {:?}",
-    //            elapsed_secs,
-    //            whole_elapsed_frames,
-    //            extra_time,
-    //            m.accumulated_time);
-
-    // TODO:
-    // cap fps if we're rendering too quickly.
-    // i think we should choose to save CPU by capping at decent framerate
-    // than to be faithful to high fps and use extra CPU
-    // aka
-    // if < 15 ms elapsed, that means we're getting +60 fps
-    // so probably better skip rendering at this moment and save some CPU cycles
-    // and still get smooth 30fps,
-    // than overuse CPU to get more than is necessary
-    // aka
-    // let is_too_fast = immediate_fps > min(m.VIDEO_METADATA.fps, 30fps) || elapsed_frames == 0
-
+    let whole_elapsed_frames = frames_since_prev_instant(m);
     let is_too_fast = whole_elapsed_frames == 0;
-    if is_too_fast {
-        // slow down by not drawing anything during this tick
-        m.prev_instant = now;
-        return UpdateResult::Continue;
+    match is_too_fast {
+        true => {
+            // slow down by not drawing anything during this tick
+            m.prev_instant = now;
+            return UpdateResult::Continue;
+        },
+        false => {
+            // now we know the next frame number to render
+            m.frame = m.frame_iterator.skip_some_frames(whole_elapsed_frames - 1);
+            m.frame_number += whole_elapsed_frames as u32;
+        }
     }
-
-    // now we know the next frame number to render
-    m.frame_iterator.skip_some_frames(whole_elapsed_frames - 1);
-    m.frame = m.frame_iterator.take_frame();
-    m.frame_number += whole_elapsed_frames as u32;
 
     // --- update stats --- //
 
@@ -834,6 +787,50 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
     return UpdateResult::Continue;
 }
 
+fn frames_since_prev_instant(m: &mut Model) -> u32 {
+    // find how many frames elapsed since last tick,
+    // and modify leftover time
+
+    // example converting elapsed ms to elapsed frames:
+    //
+    // 0.040 secs elapsed   30 frames   1.2 frames
+    // ------------------ * --------- =   elapsed
+    //                       1 second
+    //
+    // whole_frames_elapsed = 1 frame
+    //
+    //                0.2 frames    1 second
+    // rounding_err = ---------- * --------- = 0.007 seconds
+    //                             30 frames
+    //
+    let now = std::time::Instant::now();
+    let elapsed_secs = (now - m.prev_instant).as_secs_f64();
+
+    // how many frames should have passed since last tick; sometimes 0, usually 1 or more
+    let mut whole_elapsed_frames: u32 = (elapsed_secs * m.VIDEO_METADATA.fps).floor() as u32;
+
+    // account for accumulated deltas from rounding down.
+    // the leftover time eventually adds up to frame's worth of compensated time
+    // (like an extra day in a leap year)
+    let rounding_err: SecondsFloat =
+        elapsed_secs - (whole_elapsed_frames as f64 * m.VIDEO_METADATA.seconds_per_frame);
+    m.accumulated_time += rounding_err;
+
+    let need_leap_frame = m.accumulated_time > m.VIDEO_METADATA.seconds_per_frame;
+    if need_leap_frame {
+        whole_elapsed_frames += 1;
+        m.accumulated_time -= m.VIDEO_METADATA.seconds_per_frame;
+    }
+
+    // log::info!("{:?} {:?} {:?} {:?}",
+    //            elapsed_secs,
+    //            whole_elapsed_frames,
+    //            extra_time,
+    //            m.accumulated_time);
+
+    return whole_elapsed_frames;
+}
+
 fn toggle_paused(m: &mut Model) {
     m.paused = !m.paused;
     if !m.paused {
@@ -847,12 +844,14 @@ fn toggle_controls_visibility(m: &mut Model) {
     m.needs_to_clear = true; // controls will still show at bottom unless cleared/drawn over
 }
 
+// note: any function that modifies playerhead position aka m.frame_number in Segment mode
+// must check if segment number has changed
+
 fn seek_backwards_15s(m: &mut Model) {
     let frames_to_backtrack = (m.VIDEO_METADATA.fps * 15.0) as u32;
     m.frame_number = std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
     let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-    m.frame_iterator.goto_timestamp(timestamp).unwrap();
-    m.frame = m.frame_iterator.take_frame();
+    m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
     // TODO: update current segment
     // let old_position = m.hovering.position;
@@ -864,8 +863,7 @@ fn seek_forwards_15s(m: &mut Model) {
     let frames_to_skip = (m.VIDEO_METADATA.fps * 15.0) as u32;
     m.frame_number += frames_to_skip;
     let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-    m.frame_iterator.goto_timestamp(timestamp).unwrap();
-    m.frame = m.frame_iterator.take_frame();
+    m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
     // TODO: update current segment
     // let upcoming_markers =
@@ -889,8 +887,7 @@ fn goto_prev_marker(m: &mut Model) {
             };
             let timestamp: SecondsFloat = m.markers[new_position as usize];
             m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
-            m.frame_iterator.goto_timestamp(timestamp).unwrap();
-            m.frame = m.frame_iterator.take_frame();
+            m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
             m.paused = true;
         }
     }
@@ -917,8 +914,7 @@ fn goto_next_marker(m: &mut Model) {
             };
             let timestamp: SecondsFloat = m.markers[new_position];
             m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
-            m.frame_iterator.goto_timestamp(timestamp).unwrap();
-            m.frame = m.frame_iterator.take_frame();
+            m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
             m.paused = true;
         }
     };
@@ -926,7 +922,6 @@ fn goto_next_marker(m: &mut Model) {
 
 fn create_marker(m: &mut Model) {
     // create new marker at current timestamp
-    //
     match m.hovering.mode {
         HoverMode::Markers => (),
         HoverMode::Segments => {
@@ -939,7 +934,6 @@ fn create_marker(m: &mut Model) {
 
 fn delete_marker(m: &mut Model) {
     // delete current marker and enter segments mode
-    //
     match m.hovering.mode {
         HoverMode::Segments => (),
         HoverMode::Markers => {
@@ -953,17 +947,11 @@ fn advance_one_frame(m: &mut Model) {
     match m.paused {
         false => (),
         true => {
-            m.frame = m.frame_iterator.take_frame();
+            m.frame = m.frame_iterator.skip_some_frames(1);
             m.frame_number += 1;
         }
     }
 }
-
-
-
-
-
-
 
 // --- VIEW --- //
 
