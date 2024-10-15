@@ -68,6 +68,11 @@ vic http://example.com/video.avi -w 20
   j/l ..... seek back/forwards
   m ....... make marker
   q ....... finish
+
+[ marker mode ]
+
+  M ....... delete marker
+  J/L ..... goto prev/next marker
 ```
 
 ## Notes
