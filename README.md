@@ -2,7 +2,7 @@
 
 Play & cut videos in the terminal
 
-[demo.webm](https://github.com/user-attachments/assets/89d099d0-21fe-482b-b793-03fa053c79ad)
+![screenshot](https://github.com/user-attachments/assets/6ea7bceb-4760-45f2-aabf-c7f340219365)
 
 ## Building
 
