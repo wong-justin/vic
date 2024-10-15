@@ -81,7 +81,9 @@ Here's a blog post: https://wonger.dev/posts/chafa-ffmpeg-progress
 
 My main focus for now is fiddling with GitHub Actions and building static binaries.
 
-The other big task is to add audio.
+I also need to use an async runtime. Right now, the program gets sluggish with large videos, and it interferes with user input.
+
+Another big task is to add audio.
 
 There's several quality-of-life improvements to work on.
 
