@@ -31,7 +31,7 @@ You can find the built binary at `target/debug/vic`, or you can use `cargo run` 
 
 ## Static binaries
 
-Coming soon! See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
+Coming eventually! See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
 
 ## Usage
 
@@ -90,3 +90,5 @@ Another big task is to add audio.
 There's several quality-of-life improvements to work on.
 
 Pull requests welcome :)
+
+Created during [LMT2](https://lmt2.com/).
