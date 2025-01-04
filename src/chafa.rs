@@ -247,10 +247,10 @@ mod tests {
     #[test]
     fn test_one_pixel_output() {
         // just a red block char
-        const PIX_WIDTH : i32 = 1;
-        const PIX_HEIGHT : i32 = 1;
-        const N_CHANNELS : i32 = 4;
-        let pixels : [u8; 4] = [0xff, 0x00, 0x00, 0xff];
+        const PIX_WIDTH: i32 = 1;
+        const PIX_HEIGHT: i32 = 1;
+        const N_CHANNELS: i32 = 4;
+        let pixels: [u8; 4] = [0xff, 0x00, 0x00, 0xff];
 
         let symbol_map = SymbolMap::new();
         symbol_map.add_by_tags(Symbols::BLOCK);
@@ -261,13 +261,15 @@ mod tests {
 
         let canvas = Canvas::new(config);
 
-        canvas.draw_all_pixels(PixelType::RGBA8_UNASSOCIATED,
-                               &pixels,
-                               PIX_WIDTH,
-                               PIX_HEIGHT,
-                               PIX_WIDTH * N_CHANNELS);
+        canvas.draw_all_pixels(
+            PixelType::RGBA8_UNASSOCIATED,
+            &pixels,
+            PIX_WIDTH,
+            PIX_HEIGHT,
+            PIX_WIDTH * N_CHANNELS,
+        );
 
-        let output : String = canvas.build_ansi();
+        let output: String = canvas.build_ansi();
         assert_eq!(output, "[0m[38;2;254;0;0m█[0m");
     }
 }

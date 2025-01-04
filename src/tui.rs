@@ -170,7 +170,6 @@ impl<Init, View, Update> Program<Init, View, Update> {
         //     stderr.flush();
         // }
 
-
         // cleanup and be a good citizen so the terminal behaves normally afterwards (eg. start catching ctrl+c again, and show cursor)
         //
         // TODO: cleanup even after panic

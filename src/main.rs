@@ -761,7 +761,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
             // slow down by not drawing anything during this tick
             m.prev_instant = now;
             return UpdateResult::Continue;
-        },
+        }
         false => {
             // now we know the next frame number to render
             m.frame = m.frame_iterator.skip_some_frames(whole_elapsed_frames - 1);
@@ -1006,7 +1006,7 @@ fn advance_one_frame(m: &mut Model) {
 fn skip_to_percent(m: &mut Model, percent: u32) {
     // skip to arbitrary point in video. useful to avoid many repeated skips.
     // maybe future TODO: implement mouse listener to seek by clicking?
-    let timestamp : SecondsFloat = m.VIDEO_METADATA.duration_secs * percent as f64 / 100.0;
+    let timestamp: SecondsFloat = m.VIDEO_METADATA.duration_secs * percent as f64 / 100.0;
     let frame_number = (timestamp * m.VIDEO_METADATA.fps).floor() as u32;
 
     let old_frame_number = m.frame_number;
@@ -1020,7 +1020,6 @@ fn skip_to_percent(m: &mut Model, percent: u32) {
     };
     m.hovered_item.mode = HoverMode::Segments;
 }
-
 
 // --- VIEW --- //
 
@@ -1163,10 +1162,14 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         outbuf,
         MoveToColumn(m.frame_iterator.output_cols - 12),
         Print(match m.hovered_item.mode {
-            HoverMode::Segments =>
-                format!("segment {} of {}", m.hovered_item.position + 1, num_segments),
+            HoverMode::Segments => format!(
+                "segment {} of {}",
+                m.hovered_item.position + 1,
+                num_segments
+            ),
             // HoverMode::Segments => format!("     {} segments", num_segments),
-            HoverMode::Markers => format!(" marker {} of {}", m.hovered_item.position + 1, num_markers),
+            HoverMode::Markers =>
+                format!(" marker {} of {}", m.hovered_item.position + 1, num_markers),
         }),
         MoveToNextLine(1),
     );
