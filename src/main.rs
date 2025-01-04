@@ -571,7 +571,8 @@ fn init() -> Result<Model, String> {
 
      space ... play/pause
      j/l ..... seek back/forwards
-     s ....... remove/keep segment
+     0-9 ..... seek to 0%, 10%, etc
+     . ....... advance one frame
      m ....... make marker
      q ....... finish
 
@@ -588,7 +589,7 @@ fn init() -> Result<Model, String> {
    which may occur in corrupted or incomplete video files.
    vic needs at least 14 columns.
 
-   source: github.com/wong-justin/vic
+   source: https://github.com/wong-justin/vic
 
 ",
         // examples: ffmpeg -i bigvideo.mp4 -vf scale="iw/4:ih/4" smallvideo.mp4 \
@@ -725,6 +726,16 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
                 KeyCode::Char('m') => create_marker(m),
                 KeyCode::Char('M') => delete_marker(m),
                 KeyCode::Char('.') => advance_one_frame(m),
+                KeyCode::Char('0') => skip_to_percent(m, 0),
+                KeyCode::Char('1') => skip_to_percent(m, 10),
+                KeyCode::Char('2') => skip_to_percent(m, 20),
+                KeyCode::Char('3') => skip_to_percent(m, 30),
+                KeyCode::Char('4') => skip_to_percent(m, 40),
+                KeyCode::Char('5') => skip_to_percent(m, 50),
+                KeyCode::Char('6') => skip_to_percent(m, 60),
+                KeyCode::Char('7') => skip_to_percent(m, 70),
+                KeyCode::Char('8') => skip_to_percent(m, 80),
+                KeyCode::Char('9') => skip_to_percent(m, 90),
                 _ => (),
             };
         }
@@ -992,6 +1003,25 @@ fn advance_one_frame(m: &mut Model) {
     }
 }
 
+fn skip_to_percent(m: &mut Model, percent: u32) {
+    // skip to arbitrary point in video. useful to avoid many repeated skips.
+    // maybe future TODO: implement mouse listener to seek by clicking?
+    let timestamp : SecondsFloat = m.VIDEO_METADATA.duration_secs * percent as f64 / 100.0;
+    let frame_number = (timestamp * m.VIDEO_METADATA.fps).floor() as u32;
+
+    let old_frame_number = m.frame_number;
+    m.frame_number = frame_number;
+    m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
+
+    let moved_forward = m.frame_number > old_frame_number;
+    match moved_forward {
+        true => update_if_moved_past_segment(m),
+        false => update_if_moved_behind_segment(m),
+    };
+    m.hovered_item.mode = HoverMode::Segments;
+}
+
+
 // --- VIEW --- //
 
 fn format_secs_to_mm_ss(seconds: SecondsFloat) -> String {
@@ -1159,6 +1189,10 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         }),
         MoveToNextLine(1),
         Print("   j/l = skip back/forwards  "),
+        MoveToNextLine(1),
+        Print("   0-9 = skip to 0%, 10%, etc"),
+        MoveToNextLine(1),
+        Print("     . = advance one frame   "),
         MoveToNextLine(1),
         Print("     h = hide controls       "),
         MoveToNextLine(1),

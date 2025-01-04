@@ -66,6 +66,8 @@ vic http://example.com/video.avi -w 20
 
   space ... play/pause
   j/l ..... seek back/forwards
+  0-9 ..... seek to 0%, 10%, etc
+  . ....... advance one frame
   m ....... make marker
   q ....... finish
 
