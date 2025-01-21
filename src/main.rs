@@ -974,7 +974,12 @@ fn create_marker(m: &mut Model) {
         HoverMode::Markers => (),
         HoverMode::Segments => {
             let timestamp: SecondsFloat = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
-            m.markers.push(timestamp);
+            let pos = match m.markers.binary_search_by(|other| {
+                other.partial_cmp(&timestamp).expect("NaN is incomparable")
+            }) {
+                Ok(pos) | Err(pos) => pos,
+            };
+            m.markers.insert(pos, timestamp);
             log::info!("{:.3}", timestamp);
         }
     }
