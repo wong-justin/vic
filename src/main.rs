@@ -1158,6 +1158,8 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
     //     s = keep segment
     // space = pause
     //   j/l = skip back/forwards
+    //   0-9 = skip to 0%, 10%, etc
+    //     . = advance one frame
     //     q = finish, making 1 segment
 
     let num_markers = m.markers.len();
@@ -1168,47 +1170,54 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         MoveToColumn(m.frame_iterator.output_cols - 12),
         Print(match m.hovered_item.mode {
             HoverMode::Segments => format!(
-                "segment {} of {}",
+                "segment {} of {}\n",
                 m.hovered_item.position + 1,
                 num_segments
             ),
             // HoverMode::Segments => format!("     {} segments", num_segments),
-            HoverMode::Markers =>
-                format!(" marker {} of {}", m.hovered_item.position + 1, num_markers),
+            HoverMode::Markers => format!(
+                " marker {} of {}\n",
+                m.hovered_item.position + 1,
+                num_markers
+            ),
         }),
-        MoveToNextLine(1),
+        MoveToColumn(1),
     );
 
     queue!(
         outbuf,
         Print(match m.hovered_item.mode {
-            HoverMode::Segments => "     m = make marker           ",
-            HoverMode::Markers => "     M = remove marker         ",
+            HoverMode::Segments => "     m = make marker           \n",
+            HoverMode::Markers => "     M = remove marker         \n",
         }),
-        MoveToNextLine(1),
-        Print("   J/L = prev/next marker    "),
-        MoveToNextLine(1),
+        MoveToColumn(1),
+        Print(match (&m.hovered_item.mode, m.markers.len()) {
+            (HoverMode::Segments, 0) => "", // no markers
+            (HoverMode::Markers, 1) => "",  // cannot nav left or right
+            _ => "   J/L = prev/next marker    \n",
+        }),
         // TODO: if m.current_segment.is_removed, then text = "keep segment"
         // Print("     s = remove segment        "),
-        // MoveToNextLine(1),
+        MoveToColumn(1),
         Print(match m.paused {
-            true => " space = unpause",
-            false => " space = pause  ",
+            true => " space = unpause               \n",
+            false => " space = pause                 \n",
         }),
-        MoveToNextLine(1),
-        Print("   j/l = skip back/forwards  "),
-        MoveToNextLine(1),
-        Print("   0-9 = skip to 0%, 10%, etc"),
-        MoveToNextLine(1),
-        Print("     . = advance one frame   "),
-        MoveToNextLine(1),
-        Print("     h = hide controls       "),
-        MoveToNextLine(1),
+        MoveToColumn(1),
+        Print("   j/l = skip back/forwards  \n"),
+        MoveToColumn(1),
+        Print("   0-9 = skip to 0%, 10%, etc\n"),
+        MoveToColumn(1),
+        Print("     . = advance one frame   \n"),
+        MoveToColumn(1),
+        Print("     h = hide controls       \n"),
+        MoveToColumn(1),
         Print(match num_segments {
-            1 => "     q = quit                          ".to_string(),
-            _ => format!("     q = quit and cut into {} segments", num_segments),
+            1 => "     q = quit                          \n".to_string(),
+            _ => format!("     q = quit and cut into {} segments\n", num_segments),
         }),
-        MoveToNextLine(1),
+        MoveToColumn(1),
+        Print("                                        "),
     );
 }
 
