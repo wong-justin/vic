@@ -543,12 +543,6 @@ fn init() -> Result<Model, String> {
         "
  vic {} - cut videos in the terminal
 
- _____
- USAGE
-
-   vic <filepath> [-w <int, default 40>]
-                  [--hide-controls]
-                  [--help|--version]
  ________
  EXAMPLES
 
@@ -556,6 +550,12 @@ fn init() -> Result<Model, String> {
    vic video.mp4 -w=9999 --hide-controls
    vic http://example.com/video.avi -w 20
 
+ _____
+ USAGE
+
+   vic <filepath> [-w <int, default 40>]
+                  [--hide-controls]
+                  [--help|--version]
  _______
  OPTIONS
 
@@ -592,7 +592,7 @@ fn init() -> Result<Model, String> {
    source: https://github.com/wong-justin/vic
 
 ",
-        // examples: ffmpeg -i bigvideo.mp4 -vf scale="iw/4:ih/4" smallvideo.mp4 \
+        // more examples: ffmpeg -i bigvideo.mp4 -vf scale="iw/4:ih/4" smallvideo.mp4 \
         //   && vic small_video.mp4 --just-the-recipe
         env!("CARGO_PKG_VERSION")
     );
@@ -605,7 +605,7 @@ fn init() -> Result<Model, String> {
         std::process::exit(0);
     }
     if pargs.contains(["-v", "--version"]) {
-        print!("{}", env!("CARGO_PKG_VERSION"));
+        print!("{}\n", env!("CARGO_PKG_VERSION"));
         std::process::exit(0);
     }
     let args = CliArgs {
@@ -1286,7 +1286,7 @@ fn main() {
         Err(msg) => {
             // app failed; explain why
             log::info!("Error: {}", msg.to_string());
-            write!(std::io::stderr(), "Error: {}", msg.to_string());
+            write!(std::io::stderr(), "Error: {}\n", msg.to_string());
             std::process::exit(1);
         }
     };
