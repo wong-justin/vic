@@ -50,7 +50,7 @@ fn main() {
 }
 
 fn build_static() {
-    // wip / todo: fix this
+    // TODO: fix static build. see below:
     //
     // link chafa (and glib) statically from vendored source
 

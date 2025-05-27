@@ -100,7 +100,7 @@ impl SymbolMap {
         }
     }
 
-    // TODO:
+    // TODO: add ranges and tags of symbols
     // remove_by_tags
     // add_by_range
     // remove_by_range
@@ -162,8 +162,7 @@ impl Config {
         }
     }
 
-    // TODO:
-    // all the other config options
+    // TODO: all the other config options
 }
 
 impl core::ops::Drop for Config {
@@ -227,9 +226,7 @@ impl Canvas {
         }
     }
 
-    // TODO:
-    // print(&self, term_info)
-    // and other functions
+    // TODO: print(&self, term_info) and other canvas functions
 }
 
 impl core::ops::Drop for Canvas {

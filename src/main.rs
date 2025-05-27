@@ -12,17 +12,17 @@
 // - some rust dependencies like crossterm
 //
 // ----------------------------------------
-// lesser TODOs:
+// lesser priorities:
 //
-// i should use chafa::canvas.print_rows() so i dont have to undo line work
+// TODO: use chafa::canvas.print_rows() so i dont have to undo line work
 //
-// replace all .ok_or(format!(...)) with .ok_or_else(|| format!(...))
+// TODO: replace all .ok_or(format!(...)) with .ok_or_else(|| format!(...))
 // see: https://medium.com/@techhara/rust-tip-and-trick-2-5a92641191f6
 //
-// use generic Pathlike P instead of filepath: String
+// TODO: use generic Pathlike P instead of filepath: String
 // and figure out generic type signatures everywhere
 //
-// consider using mut &str for model.frame instead of String.
+// TODO: consider using mut &str for model.frame instead of String.
 // not sure if this will actually help performance
 //
 // ----------------------------------------
@@ -224,10 +224,10 @@ struct VideoMetadata {
 }
 
 fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box<dyn Error>> {
-    // note/TODO:
-    // https://stackoverflow.com/q/6239350#comment92617706_6239379
-    // if metdata is corrupted, ffprobe will report wrong data, but ffmpeg will have correct data
+    // note/TODO: if metdata is corrupted, ffprobe will report wrong data,
+    // but ffmpeg will have correct data
     // so maybe dont use ffprobe
+    // https://stackoverflow.com/q/6239350#comment92617706_6239379
     //
     // to learn:
     // https://ffmpeg.org//ffprobe.html#Main-options
@@ -1006,7 +1006,7 @@ fn advance_one_frame(m: &mut Model) {
 
 fn skip_to_percent(m: &mut Model, percent: u32) {
     // skip to arbitrary point in video. useful to avoid many repeated skips.
-    // maybe future TODO: implement mouse listener to seek by clicking?
+    // low-priority TODO: implement mouse listener to seek by clicking?
     let timestamp: SecondsFloat = m.VIDEO_METADATA.duration_secs * percent as f64 / 100.0;
     let frame_number = (timestamp * m.VIDEO_METADATA.fps).floor() as u32;
 
@@ -1084,9 +1084,10 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         Print(match m.paused {
             true => " ||",
             false => " >>",
-            // TODO:
+            // TODO: implment video speeds
             // true => "paused || x2 / x1 / x0.5",
             // false => "playing >> x2 / x1 / x0.5",
+            // TODO: implement loading widget for async UI moments
             // buffering => "buffering 6-frame loading cycle of braille ⠆⠃⠉⠘⠰⠤
         }),
         MoveToNextLine(1),
@@ -1155,6 +1156,9 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
     //   0-9 = skip to 0%, 10%, etc
     //     . = advance one frame
     //     q = finish, making 1 segment
+
+    // TODO: consider the lovely bottom-help text from bubbletea,
+    // like in this demo: https://github.com/charmbracelet/wishlist
 
     let num_markers = m.markers.len();
     let num_segments = num_markers + 1;

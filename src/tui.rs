@@ -121,7 +121,7 @@ impl<Init, View, Update> Program<Init, View, Update> {
             // while still letting cpu rest a little with this sleep() call.
             // note that 33ms would be enough for 30fps if each frame is processed instantly
             //
-            // also note/todo: this constant polling keeps cpu active even when video is paused.
+            // also note/TODO: this constant polling keeps cpu active even when video is paused.
             // the alternative is overhauling and refactoring to implement async
             // (im not ready for that work yet) (esp since i want to avoid heavy tokio dependency)
             if crossterm::event::poll(Duration::from_millis(16)).unwrap() {
