@@ -8,7 +8,8 @@ Play & cut videos in the terminal
 
 ### Linux
 
-`vic` is dynamically linked with [`chafa`](https://hpjansson.org/chafa/), a C library that makes pretty pictures. To install `chafa`:
+`vic` is dynamically linked with [`chafa`](https://hpjansson.org/chafa/), a C library that makes pretty pictures. 
+Install `chafa` from your package manager, or build it from source:
 
 ```
 apt-get install libglib2.0-dev
@@ -31,7 +32,8 @@ You can find the built binary at `target/debug/vic`, or you can use `cargo run` 
 
 ## Static binaries
 
-Coming eventually! See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
+Coming eventually! 
+See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
 
 ## Usage
 
@@ -81,11 +83,9 @@ vic http://example.com/video.avi -w 20
 
 Here's a blog post: https://wonger.dev/posts/chafa-ffmpeg-progress
 
-My main focus for now is fiddling with GitHub Actions and building static binaries.
+My main focus for now is creating a separate UI thread and adding audio.
 
-I also need to use an async runtime. Right now, the program gets sluggish with large videos, and it interferes with user input.
-
-Another big task is to add audio.
+I also need to fiddle with GitHub Actions and building static binaries.
 
 There's several quality-of-life improvements to work on.
 

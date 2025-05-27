@@ -1,0 +1,67 @@
+vic depends on ffmpeg and chafa
+
+vic makes ffmpeg calls, assuming ffmpeg is on $PATH:
+- main::get_ffprobe_video_metadata() calls ffprobe (a sibling of ffmpeg) to get video dimensions and framerate
+- main::FrameIterator calls ffmpeg to decode a video file into rgb bytes
+- main::main() calls ffmpeg to cut the video into segments (if any segments were made)
+
+calling ffmpeg process on $PATH seemed easier than trying to link ffmpeg libraries
+one less build step
+ffmpeg performance still seems fine
+hopefully there's no downsides
+
+___
+chafa is a dynamically linked C library, meaning it already needs to be installed on the user's system. the chafa binary is not needed here, but rather the development libraries and header files.
+nothing in place to guarantee/check specific chafa versions; i just went with the latest chafa version at the time, and hopefully it will work for everyone
+
+chafa-sys/ is a sub-crate (?) for creating rust bindings to chafa's C code.
+chafa-sys/build.rs has a lot of comments from me figuring out the expected setup
+chafa-sys/build.rs::build_dynamic() is the least-boilerplate part of the bindings build; just calling `clang -I chafastuff`, really
+everything else in chafa-sys is just boilerplate; lib.rs for a couple tests, wrapper.h just needs to exist for clang i think, and bindgen crate included in Cargo.toml
+bindgen creates bindings file at target/debug/build/chafa-sys-abc123something/out/bindings.rs
+there's a lot of unused code there, like functions i will never need like `g_get_user_state_dir`, but oh well
+i think i can trim the bindings by whitelisting only necessary functions
+
+no static builds yet
+static builds involve several new challenges, including glib
+glib like a third-party stdlib for C, including threading implementations, string handling, etc
+glib is chafa's only dependency
+building / statically linking glib is nontrivial
+
+src/chafa.rs wraps the lowish-level chafa bindings (eg. unsafe chafa_canvas_new() and unsafe chafa_canvas_unref()) into high-level rust structs (eg. Canvas impl new() and drop())
+mainly just hiding C pointers and exposing 
+
+___
+src/tui.rs is a generic MVU TUI setup
+(model, view, update for a text-based UI)
+(essentially the elm architecture)
+
+requires functions of type:
+init -> result<model, error>
+view (model, stderr) -> (draws on stderr, returns nothing)
+update (model, event) -> continue/finish/failed
+
+uses crossterm crate for a standardized API for terminal emulator communication
+
+current, naive event loop:
+frequently polling the terminal for events like keypresses or resizes
+responding to any events received
+drawing new frames when appropriate (like ~33ms for 30fps videos) (or after a keypress)
+no multithreaded/async event loop yet
+
+all TUI output is written to stderr on the alternate tty buffer
+(stdout is reserved for potential messages after app shutdown, e.g. `vic video.mp4 --print-timestamps`)
+
+___
+src/main.rs::FrameIterator is where ffmpeg and chafa meet
+chafa is initialized with config like input and output size
+each frame, ffmpeg decodes video into rgb bytes
+chafa takes rgb bytes and returns a string of ansi colors and unicode blocks, like  "[0m[38;2;254;0;0m█[0m", that will be sent to the terminal
+
+src/main.rs::Model contains app state
+including config like video dimensions
+and also state like current frame number and the list of timestamps (called markers)
+
+src/main.rs::update() is a big match statement handling events and keypresses
+
+keypresses so far are just for moving to different parts of the video and making/deleting markers
