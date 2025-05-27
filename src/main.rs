@@ -1268,8 +1268,9 @@ fn main() {
                     //
                     // TODO: confirm if -c copy uses millisecond-precision
                     // ie, will it ruin frame-perfect cuts?
-                    .arg("-c")
-                    .arg("copy")
+                    // yes, i think it borks keyframes and ruins output videos
+                    // .arg("-c")
+                    // .arg("copy")
                     .arg(outdir.join(format!("{}_{}.{}", filename, i, extension)))
                     .stdout(std::io::stdout())
                     .stderr(std::io::stderr())
