@@ -39,7 +39,7 @@ See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) i
 
 ```
 vic video.mp4
-vic video.mp4 -w=9999 --hide-controls
+vic video.mp4 -w=9999
 vic http://example.com/video.avi -w 20
 ```
 
@@ -47,7 +47,6 @@ vic http://example.com/video.avi -w 20
 
 ```
 vic <filepath> [-w <int, default 40>]
-               [--hide-controls]
                [--help|--version]
 ```
 
@@ -57,8 +56,6 @@ vic <filepath> [-w <int, default 40>]
 -w <int>          Max output width, in columns.
                   Use -w 9999 for fullscreen.
                   Defaults to 40.
-
---hide-controls   Hide helper text below the video.
 ```
 
 ### Controls

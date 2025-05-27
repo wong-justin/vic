@@ -516,7 +516,6 @@ impl FrameIterator {
 struct CliArgs {
     video_filepath: String,
     max_width: Columns,
-    hide_controls: bool,
     //
     // secret options for now; placeholders for future
     muted: bool,
@@ -547,14 +546,13 @@ fn init() -> Result<Model, String> {
  EXAMPLES
 
    vic video.mp4
-   vic video.mp4 -w=9999 --hide-controls
+   vic video.mp4 -w=9999
    vic http://example.com/video.avi -w 20
 
  _____
  USAGE
 
    vic <filepath> [-w <int, default 40>]
-                  [--hide-controls]
                   [--help|--version]
  _______
  OPTIONS
@@ -562,8 +560,6 @@ fn init() -> Result<Model, String> {
    -w <int>          Max output width, in columns.
                      Use -w 9999 for fullscreen.
                      Defaults to 40.
-   --hide-controls   Hide helper text below the video.
-
  ________
  CONTROLS
 
@@ -623,7 +619,6 @@ fn init() -> Result<Model, String> {
             .map_err(|e| "failed to parse -w")?
             .unwrap_or(40),
         muted: pargs.contains("--muted"),
-        hide_controls: pargs.contains("--hide-controls"),
         blocky: pargs.contains("--blocky"),
         just_the_recipe: pargs.contains("--just-the-recipe"),
     };
@@ -665,7 +660,7 @@ fn init() -> Result<Model, String> {
         terminal_rows: rows,
         VIDEO_METADATA: video_metadata,
         frame_iterator: frame_iterator,
-        hide_controls: args.hide_controls,
+        hide_controls: true,
         frame: "".to_string(),
         needs_to_clear: false,
         prev_instant: std::time::Instant::now(),
@@ -718,7 +713,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
 
             match keyevent.code {
                 KeyCode::Char(' ') => toggle_paused(m),
-                KeyCode::Char('h') => toggle_controls_visibility(m),
+                KeyCode::Char('h') => toggle_controls_visibility(m), // preserve old feature, backwards compat
                 KeyCode::Char('?') => toggle_controls_visibility(m),
                 KeyCode::Char('j') => seek_backwards_15s(m),
                 KeyCode::Char('l') => seek_forwards_15s(m),
@@ -1147,9 +1142,6 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         MoveToNextLine(2),
     );
 
-    if m.hide_controls {
-        return;
-    }
 
     // --- draw helper text and controls --- //
     //
