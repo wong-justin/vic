@@ -96,7 +96,7 @@ use crossterm::{
     cursor::{MoveLeft, MoveTo, MoveToColumn, MoveToNextLine, MoveToPreviousLine, MoveToRow},
     event::{read as await_next_event, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue,
-    style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
+    style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor, Stylize},
     terminal,
 };
 use log::info;
@@ -719,6 +719,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
             match keyevent.code {
                 KeyCode::Char(' ') => toggle_paused(m),
                 KeyCode::Char('h') => toggle_controls_visibility(m),
+                KeyCode::Char('?') => toggle_controls_visibility(m),
                 KeyCode::Char('j') => seek_backwards_15s(m),
                 KeyCode::Char('l') => seek_forwards_15s(m),
                 KeyCode::Char('J') => goto_prev_marker(m),
@@ -1150,9 +1151,10 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         return;
     }
 
-    // --- draw helper text / controls --- //
+    // --- draw helper text and controls --- //
     //
-    //                          segment 2 of 3
+    //  segment 2 of 3                   help ?
+    //
     //     m = make marker
     //   J/L = prev/next marker
     //     s = keep segment
@@ -1167,22 +1169,29 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
 
     queue!(
         outbuf,
-        MoveToColumn(m.frame_iterator.output_cols - 12),
         Print(match m.hovered_item.mode {
             HoverMode::Segments => format!(
-                "segment {} of {}\n",
+                " segment {} of {}",
                 m.hovered_item.position + 1,
                 num_segments
             ),
             // HoverMode::Segments => format!("     {} segments", num_segments),
             HoverMode::Markers => format!(
-                " marker {} of {}\n",
+                " marker {} of {} ",
                 m.hovered_item.position + 1,
                 num_markers
             ),
         }),
+        MoveToColumn(m.frame_iterator.output_cols - 3),
+        // Print("help".dark_grey()),
+        Print("help"),
+        Print("?\n\n"),
         MoveToColumn(1),
     );
+
+    if m.hide_controls {
+        return;
+    }
 
     queue!(
         outbuf,
@@ -1210,7 +1219,7 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         MoveToColumn(1),
         Print("     . = advance one frame   \n"),
         MoveToColumn(1),
-        Print("     h = hide controls       \n"),
+        Print("     ? = hide controls       \n"),
         MoveToColumn(1),
         Print(match num_segments {
             1 => "     q = quit                          \n".to_string(),
