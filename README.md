@@ -35,20 +35,20 @@ You can find the built binary at `target/debug/vic`, or you can use `cargo run` 
 Coming eventually! 
 See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
 
-## Usage
-
-```
-vic <filepath> [-w <int, default 40>]
-               [--hide-controls]
-               [--help|--version]
-```
-
 ### Examples
 
 ```
 vic video.mp4
 vic video.mp4 -w=9999 --hide-controls
 vic http://example.com/video.avi -w 20
+```
+
+## Usage
+
+```
+vic <filepath> [-w <int, default 40>]
+               [--hide-controls]
+               [--help|--version]
 ```
 
 ### Options
