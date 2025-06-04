@@ -65,3 +65,17 @@ and also state like current frame number and the list of timestamps (called mark
 src/main.rs::update() is a big match statement handling events and keypresses
 
 keypresses so far are just for moving to different parts of the video and making/deleting markers
+
+___
+some demo capture ideas:
+inside a neovim :terminal session,
+use the :ShowKeys toggle plugin
+then screencap with obs
+
+or for static images, consider
+```
+vic ~/test/test.mp4 2>&1 | tee ~/test/vicscreenoutput
+# print 2500 or however many lines of screen output it took to create the desired screen
+cat ~/test/vicscreenoutput | head -2500 ; printf '\n\n\n\n\n\n\n\n\n'
+```
+
