@@ -2,7 +2,7 @@
 
 Play & cut videos in the terminal
 
-![screenshot](https://github.com/user-attachments/assets/6ea7bceb-4760-45f2-aabf-c7f340219365)
+![screenshot](https://github.com/user-attachments/assets/da6770b1-2595-477e-98a4-94e95450912e)
 
 ## Building
 
