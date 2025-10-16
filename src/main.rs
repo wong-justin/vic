@@ -768,9 +768,9 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
 
     // --- update stats --- //
 
-    let time_to_update_fps =
+    let need_to_update_fps =
         m.frame_iterator.num_frames_rendered % NUM_FRAMES_TO_TRACK_FPS as u32 == 0;
-    if time_to_update_fps {
+    if need_to_update_fps {
         let recent_time_elapsed: SecondsFloat = (now - m.last_fps_check).as_secs_f64();
         m.recent_fps = Some(NUM_FRAMES_TO_TRACK_FPS as f64 / recent_time_elapsed);
         m.last_fps_check = now;
@@ -780,8 +780,8 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
         // No need to constantly update fps every frame.
     }
 
-    let time_to_log = m.frame_iterator.num_frames_rendered % 100 == 1;
-    if time_to_log {
+    let need_to_log = m.frame_iterator.num_frames_rendered % 100 == 1;
+    if need_to_log {
         log::info!(
             "{:?} {:?} {:?} {:?}",
             now - m.start,
