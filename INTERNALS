@@ -79,3 +79,36 @@ vic ~/test/test.mp4 2>&1 | tee ~/test/vicscreenoutput
 cat ~/test/vicscreenoutput | head -2500 ; printf '\n\n\n\n\n\n\n\n\n'
 ```
 
+___
+feature ideas:
+
+zoomable scrubber
+https://img.ly/blog/designing-a-timeline-for-mobile-video-editing/
+
+rust audio playback?
+https://github.com/RustAudio/rodio
+
+___
+PRE-WORK RITUAL
+taken from:
+https://pgadey.ca/notes/writing-ritual/
+
+- am i cozy?
+- do i have water?
+- is the source code open?
+- do i have a notebook nearby?
+- is my phone muted / far away?
+- do i have an entry point / is the work log updated?
+- did i listen to one of the songs?
+https://pgadey.ca/share/present-time.mp3
+https://pgadey.ca/share/dwelling.mp3
+- did i freewrite/warmup for a couple minutes?
+
+magic project thesis:
+??
+
+work log: date, time -- duration. -- entry point -- what got done?
+- oct 16, 9:30am -- ?? mins. -- task: work on adding UI thread and processing thread
+- ??, next entry point: ??
+
+
