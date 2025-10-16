@@ -1,4 +1,5 @@
 // mini functional framework for application lifecycle and terminal display
+// see also: https://github.com/superhawk610/douglas
 
 #![allow(unused_variables)]
 #![allow(unused_imports)]

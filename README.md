@@ -26,7 +26,7 @@ Once `chafa` is installed, you can build the Rust project with `cargo build`.
 
 Make sure everything is compiled and linked correctly by running `cargo test`.
 
-You can find the built binary at `target/debug/vic`, or you can use `cargo run` as an alias for `vic`.
+You can find the built binary at `target/debug/vic`, or install it with `cargo install --path .`
 
 `vic` requires [`ffmpeg`](https://ffmpeg.org//download.html) to be on `$PATH` during runtime.
 

@@ -405,7 +405,7 @@ impl FrameIterator {
             // We'll use the /dev/null solution for now because it's the easiest.
             // Ideally, we capture stderr and monitor it for error messages.
             // But ffmpeg poops out line-by-line logs next to important plaintext error msgs
-            // So I think it would be challenging to parse stderr.
+            // So I think it would be mildly challenging to parse stderr.
             // And there's more important features/fixes to focus on for now.
             //
             .stderr(std::process::Stdio::null())

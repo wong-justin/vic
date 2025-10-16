@@ -24,7 +24,7 @@ dev:
 generate-tests:
 	@echo todo
 
-# simpler, but worse formatting: @rg todo
+# simpler, but worse formatting: @rg TODO
 .PHONY: roadmap
 roadmap:
 	@git ls-files | grep -v Makefile | xargs grep -h TODO | perl -pe 's/^[ \/]*//'
