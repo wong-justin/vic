@@ -1,6 +1,7 @@
 target
 cruft
 demo
+test
 chafa-sys/vendor
 Cargo.lock
 ISSUES

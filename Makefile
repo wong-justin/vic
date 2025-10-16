@@ -9,10 +9,19 @@
 #
 .PHONY: dev
 dev:
-	gaze $$(git ls-files) -r -c 'cargo run /home/wonger/test/test.mp4'
-	# git ls-files | entr -cs 'cargo run ~/test/test.mp4'
+	gaze $$(git ls-files) -r -c 'cargo run ./test/bbb_480p_24fps.avi'
+
+.PHONY: install
+install:
+	@echo TODO: install dependencies
+	@echo for now, just install test assets
+	mkdir -p test
+	@# download links taken from: http://bbb3d.renderfarming.net/download.html
+	@# be sure to follow redirects, since these links may change over the years
+	curl -o test/bbb_480p_24fps.avi -L http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi # lite, 220MB
+	# curl -o test/bbb_1080p_60fps.mp4 -L http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_1080p_60fps_normal.mp4 # heavy, 350MB
 	
-# something like:
+# perhaps something like:
 # ffmpeg create frames containing text label for each frame (1,2,etc)
 # ffmpeg create long, colorful .mp4
 # ffmpeg create short .mp4 with audio
