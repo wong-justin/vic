@@ -1272,8 +1272,25 @@ fn _cmd_to_string(cmd: &std::process::Command) -> String {
     .join(" ");
 }
 
-// TODO: a unit test to make sure this brittle command destructuring does not accidentally break on
-// future updates
+// make sure the brittle destructuring above does not accidentally break in the future
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn commands_are_properly_stringified() {
+        let mut sample_cmd = std::process::Command::new("ffmpeg");
+        sample_cmd
+            .arg("-ss")
+            .arg(format!("{:.3}", 60))
+            .arg("-i")
+            .arg("./filename/with spaces.mp4")
+            .arg("-to")
+            .arg(format!("{:.3}", 123.456789))
+            .arg("./filename/with spaces_0.mp4");
+        assert_eq!(_cmd_to_string(&sample_cmd), "ffmpeg -ss 60 -i './filename/with spaces.mp4' -to 123.457 './filename/with spaces_0.mp4'");
+    }
+}
 
 // #[tokio::main]
 fn main() {
