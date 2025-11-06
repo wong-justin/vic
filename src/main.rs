@@ -86,7 +86,6 @@
 
 use std::error::Error;
 use std::io::{BufRead, Read, Write};
-use std::path::PathBuf;
 use std::str::FromStr;
 
 use crossterm::{
@@ -551,177 +550,6 @@ struct CliArgs {
 //     BadFfprobe,
 //     BadCliArg,
 // }
-
-// --- INIT --- //
-
-fn init() -> Result<Model, String> {
-    let HELP_MSG: String = format!(
-        "
- vic {} - cut videos in the terminal
-
- ________
- EXAMPLES
-
-   vic video.mp4
-   vic video.mp4 -w=9999
-   vic http://example.com/video.avi -w 20
-   vic video.webm -w 80 --dry-run
-
- _____
- USAGE
-
-   vic <filepath> [-w <int, default 40>]
-                  [--dry-run]
-                  [--help|--version]
- _______
- OPTIONS
-
-   -w <int>          Max output width, in columns.
-                     Use -w 9999 for fullscreen.
-                     Defaults to 40.
-
-   --dry-run         Instead of auto-running ffmpeg commands
-                     on finish, just print the commands to stdout.
-
- ________
- CONTROLS
-
-   [ segment mode ]
-
-     space ... play/pause
-     j/l ..... seek back/forwards
-     0-9 ..... seek to 0%, 10%, etc
-     . ....... advance one frame
-     m ....... make marker
-     q ....... finish
-
-   [ marker mode ]
-
-     M ....... delete marker
-     J/L ..... goto prev/next marker
-
- _____
- NOTES
-
-   vic accepts video filepaths that ffmpeg accepts, including URLs.
-   vic fails if the video has no known duration,
-   which may occur in corrupted or incomplete video files.
-   vic needs at least 14 columns.
-
-   source: https://github.com/wong-justin/vic
-
-",
-        // more examples: ffmpeg -i bigvideo.mp4 -vf scale="iw/4:ih/4" smallvideo.mp4 \
-        //   && vic small_video.mp4 --dry-run
-        env!("CARGO_PKG_VERSION")
-    );
-
-    // Receive command-line args.
-    // https://github.com/RazrFalcon/pico-args/blob/master/examples/app.rs
-    let mut pargs = pico_args::Arguments::from_env();
-    if pargs.contains(["-h", "--help"]) {
-        print!("{}", HELP_MSG);
-        std::process::exit(0);
-    }
-    if pargs.contains(["-v", "--version"]) {
-        print!("{}\n", env!("CARGO_PKG_VERSION"));
-        std::process::exit(0);
-    }
-    let args = CliArgs {
-        video_filepath: pargs
-            .free_from_str::<std::path::PathBuf>()
-            // Note: commands like `vic -w 20 video.mp4` will fail, but not on this error,
-            // because pargs always assumes arg[1] is a valid positional arg.
-            // This is a limitation of the pargs library.
-            // Positional args must be listed first, like `vic video.mp4 -w 20`
-            .map_err(|e| "failed to parse command-line arg <filepath>")?
-            .display()
-            .to_string(),
-        max_width: pargs
-            .opt_value_from_fn("-w", Columns::from_str)
-            .map_err(|e| "failed to parse -w")?
-            .unwrap_or(40),
-        muted: pargs.contains("--muted"),
-        blocky: pargs.contains("--blocky"),
-        dry_run: pargs.contains("--dry-run"),
-    };
-    log::info!("{:?}", args);
-
-    // Init app state.
-    let (cols, rows): (Columns, Rows) =
-        terminal::size().map_err(|e| format!("failed to get terminal size {}", e))?;
-
-    let video_metadata = get_ffprobe_video_metadata(&args.video_filepath)
-        .map_err(|e| format!("failed to get video metadata {}", e))?;
-    let fps = video_metadata.fps;
-
-    let aspect_ratio = video_metadata.width as f64 / video_metadata.height as f64;
-    let output_cols = std::cmp::min(cols - 2, args.max_width - 2) as Columns;
-    let output_rows = (output_cols as f64 / aspect_ratio / 2.0).ceil() as Rows;
-    log::info!("{:?} {:?} {:?}", aspect_ratio, output_cols, output_rows);
-
-    let frame_iterator = FrameIterator::new(
-        args.video_filepath.to_string(),
-        (video_metadata.width as f64 * DOWNSCALE_FACTOR) as i32,
-        (video_metadata.height as f64 * DOWNSCALE_FACTOR) as i32,
-        output_cols,
-        output_rows,
-        args.blocky,
-    )
-    .map_err(|e| format!("failed to initialize video reader {}", e))?;
-
-    let model = Model {
-        paused: false,
-        frame_number: 0,
-        speed: 1.0,
-        markers: Vec::<SecondsFloat>::new(),
-        hovered_item: Hovering {
-            mode: HoverMode::Segments,
-            position: 0,
-        },
-        terminal_cols: cols,
-        terminal_rows: rows,
-        VIDEO_METADATA: video_metadata,
-        frame_iterator: frame_iterator,
-        hide_controls: true,
-        frame: "".to_string(),
-        needs_to_clear: false,
-        prev_instant: std::time::Instant::now(),
-        last_fps_check: std::time::Instant::now(),
-        recent_fps: None,
-        start: std::time::Instant::now(),
-        accumulated_time: 0.0,
-        dry_run: args.dry_run,
-    };
-
-    // enum TimerEvent {}
-
-    // terminal_event_broadcaster = new_thread.spawn(forever { await_next_terminal_event() })
-    // timer_broadcaster = timer_thread.spawn(forever { every(100ms).ping() })
-    //
-    // here.watch(broadcaster).on_broadcast(|| {
-    //     update(model, AppEvent::ShowNextFrame);
-    // })
-    // here.watch(terminal_event_broadcaster).on_broadcast(|event| {
-    //     update(model, event);
-    // })
-    //
-    // maybe tokio::join!{task1, task2}
-    // or
-    // tokio::select!{task1, task2}
-    // https://tokio.rs/tokio/tutorial/select
-
-    // let forever = tokio::spawn(async {
-    //     let mut interval = tokio::time::interval(std::time::Duration::from_millis(50));
-    //     loop {
-    //         interval.tick().await;
-    //         model.frame = model.frame_iterator.take_frame();
-    //     }
-    // });
-
-    // also a way to sleep forever maybe: std::future::pending().await;
-    return Ok(model);
-}
 
 // --- UPDATE --- //
 
@@ -1251,6 +1079,195 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
 }
 
 // --- APP START --- //
+
+fn init() -> Result<Model, String> {
+    let HELP_MSG: String = format!(
+        "
+ vic {} - cut videos in the terminal
+
+ ________
+ EXAMPLES
+
+   vic video.mp4
+   vic video.mp4 -w=9999
+   vic http://example.com/video.avi -w 20
+   vic video.webm -w 80 --dry-run
+   vic video.mp4 --log log.txt
+
+ _____
+ USAGE
+
+   vic <filepath> [-w <int, default 40>]
+                  [--dry-run]
+                  [--log <filepath>]
+                  [--help|--version]
+ _______
+ OPTIONS
+
+   -w <int>          Max output width, in columns.
+                     Use -w 9999 for fullscreen.
+                     Defaults to 40.
+
+   --dry-run         Instead of auto-running ffmpeg commands
+                     on finish, just print the recipe to stdout.
+
+   --log <path>      Write logs to this file during runtime.
+
+ ________
+ CONTROLS
+
+   [ segment mode ]
+
+     space ... play/pause
+     j/l ..... seek back/forwards
+     0-9 ..... seek to 0%, 10%, etc
+     . ....... advance one frame
+     m ....... make marker
+     q ....... finish
+
+   [ marker mode ]
+
+     M ....... delete marker
+     J/L ..... goto prev/next marker
+
+ _____
+ NOTES
+
+   vic accepts video filepaths that ffmpeg accepts, including URLs.
+   vic fails if the video has no known duration,
+   which may occur in corrupted or incomplete video files.
+   vic needs at least 14 columns.
+
+   source: https://github.com/wong-justin/vic
+
+",
+        // more examples: ffmpeg -i bigvideo.mp4 -vf scale="iw/4:ih/4" smallvideo.mp4 \
+        //   && vic small_video.mp4 --dry-run
+        env!("CARGO_PKG_VERSION")
+    );
+
+    // Receive command-line args.
+    // https://github.com/RazrFalcon/pico-args/blob/master/examples/app.rs
+    let mut pargs = pico_args::Arguments::from_env();
+    if pargs.contains(["-h", "--help"]) {
+        print!("{}", HELP_MSG);
+        std::process::exit(0);
+    }
+    if pargs.contains(["-v", "--version"]) {
+        print!("{}\n", env!("CARGO_PKG_VERSION"));
+        std::process::exit(0);
+    }
+    let args = CliArgs {
+        video_filepath: pargs
+            .free_from_str::<std::path::PathBuf>()
+            // Note: commands like `vic -w 20 video.mp4` will fail, but not on this error,
+            // because pargs always assumes arg[1] is a valid positional arg.
+            // This is a limitation of the pargs library.
+            // Positional args must be listed first, like `vic video.mp4 -w 20`
+            .map_err(|e| {
+                "failed to parse <filepath>. is the first cli argument the path to a video?"
+            })?
+            .display()
+            .to_string(),
+        max_width: pargs
+            .opt_value_from_fn("-w", Columns::from_str)
+            .map_err(|e| "failed to parse -w")?
+            .unwrap_or(40),
+        dry_run: pargs.contains("--dry-run"),
+        log_filepath: pargs
+            .opt_value_from_str::<_, std::path::PathBuf>("--log")
+            .map_err(|e| "failed to parse --log. did you include a filepath?")?,
+        // .map(|opt_pathbuf| opt_pathbuf.display().to_string()), // map from Option<PathBuf> to Option<&str>
+        muted: pargs.contains("--muted"),
+        blocky: pargs.contains("--blocky"),
+    };
+
+    // println!("{:?}", args);
+    // std::process::exit(0);
+
+    // Init logging.
+    FileLogger::init(args.log_filepath.clone());
+    log::info!(
+        "\n--- new session, version {} ---",
+        env!("CARGO_PKG_VERSION")
+    );
+    log::info!("{:?}", args);
+
+    // Init app state.
+    let (cols, rows): (Columns, Rows) =
+        terminal::size().map_err(|e| format!("failed to get terminal size {}", e))?;
+
+    let video_metadata = get_ffprobe_video_metadata(&args.video_filepath)
+        .map_err(|e| format!("failed to get video metadata {}", e))?;
+    let fps = video_metadata.fps;
+
+    let aspect_ratio = video_metadata.width as f64 / video_metadata.height as f64;
+    let output_cols = std::cmp::min(cols - 2, args.max_width - 2) as Columns;
+    let output_rows = (output_cols as f64 / aspect_ratio / 2.0).ceil() as Rows;
+    log::info!("{:?} {:?} {:?}", aspect_ratio, output_cols, output_rows);
+
+    let frame_iterator = FrameIterator::new(
+        args.video_filepath.to_string(),
+        (video_metadata.width as f64 * DOWNSCALE_FACTOR) as i32,
+        (video_metadata.height as f64 * DOWNSCALE_FACTOR) as i32,
+        output_cols,
+        output_rows,
+        args.blocky,
+    )
+    .map_err(|e| format!("failed to initialize video reader {}", e))?;
+
+    let model = Model {
+        paused: false,
+        frame_number: 0,
+        speed: 1.0,
+        markers: Vec::<SecondsFloat>::new(),
+        hovered_item: Hovering {
+            mode: HoverMode::Segments,
+            position: 0,
+        },
+        terminal_cols: cols,
+        terminal_rows: rows,
+        VIDEO_METADATA: video_metadata,
+        frame_iterator: frame_iterator,
+        hide_controls: true,
+        frame: "".to_string(),
+        needs_to_clear: false,
+        prev_instant: std::time::Instant::now(),
+        last_fps_check: std::time::Instant::now(),
+        recent_fps: None,
+        start: std::time::Instant::now(),
+        accumulated_time: 0.0,
+        dry_run: args.dry_run,
+    };
+
+    // enum TimerEvent {}
+
+    // terminal_event_broadcaster = new_thread.spawn(forever { await_next_terminal_event() })
+    // timer_broadcaster = timer_thread.spawn(forever { every(100ms).ping() })
+    //
+    // here.watch(broadcaster).on_broadcast(|| {
+    //     update(model, AppEvent::ShowNextFrame);
+    // })
+    // here.watch(terminal_event_broadcaster).on_broadcast(|event| {
+    //     update(model, event);
+    // })
+    //
+    // maybe tokio::join!{task1, task2}
+    // or
+    // tokio::select!{task1, task2}
+    // https://tokio.rs/tokio/tutorial/select
+
+    // let forever = tokio::spawn(async {
+    //     let mut interval = tokio::time::interval(std::time::Duration::from_millis(50));
+    //     loop {
+    //         interval.tick().await;
+    //         model.frame = model.frame_iterator.take_frame();
+    //     }
+    // });
+
+    // also a way to sleep forever maybe: std::future::pending().await;
+    return Ok(model);
+}
 
 fn _cmd_to_string(cmd: &std::process::Command) -> String {
     // convert a multi-string system command to a single POSIXy shell script

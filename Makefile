@@ -9,7 +9,7 @@
 #
 .PHONY: dev
 dev:
-	gaze $$(git ls-files) -r -c 'cargo run ./test/bbb_480p_24fps.avi'
+	gaze $$(git ls-files) -r -c 'cargo run ./test/bbb_480p_24fps.avi --dry-run --log=/tmp/vic_log'
 
 .PHONY: install
 install:

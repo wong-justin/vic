@@ -42,6 +42,7 @@ vic video.mp4
 vic video.mp4 -w=9999
 vic http://example.com/video.avi -w 20
 vic video.webm -w 80 --dry-run
+vic video.mp4 --log log.txt
 ```
 
 ## Usage
@@ -61,6 +62,8 @@ vic <filepath> [-w <int, default 40>]
 
 --dry-run         Instead of auto-running ffmpeg commands
                   on finish, just print the commands to stdout.
+
+--log <path>      Write logs to this file during runtime.
 ```
 
 ### Controls
