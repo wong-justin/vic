@@ -1265,11 +1265,11 @@ fn main() {
                 log::info!("trimming from {} to {}", start, end);
                 let process = std::process::Command::new("ffmpeg")
                     .arg("-ss")
-                    .arg(format!("{:0<3}", start))
+                    .arg(format!("{:.3}", start))
                     .arg("-i")
                     .arg(&m.frame_iterator.video_path)
                     .arg("-to")
-                    .arg(format!("{:0<3}", end))
+                    .arg(format!("{:.3}", end))
                     //
                     // TODO: confirm if -c copy uses millisecond-precision
                     // ie, will it ruin frame-perfect cuts?
