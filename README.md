@@ -30,17 +30,18 @@ You can find the built binary at `target/debug/vic`, or install it with `cargo i
 
 `vic` requires [`ffmpeg`](https://ffmpeg.org//download.html) to be on `$PATH` during runtime.
 
-## Static binaries
+### Static binaries
 
 Coming eventually! 
 See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
 
-### Examples
+## Examples
 
 ```
 vic video.mp4
 vic video.mp4 -w=9999
 vic http://example.com/video.avi -w 20
+vic video.webm -w 80 --dry-run
 ```
 
 ## Usage

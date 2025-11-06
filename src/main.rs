@@ -22,9 +22,6 @@
 // TODO: use generic Pathlike P instead of filepath: String
 // and figure out generic type signatures everywhere
 //
-// TODO: consider using mut &str for model.frame instead of String.
-// not sure if this will actually help performance
-//
 // ----------------------------------------
 //
 // LEARNINGS:
@@ -518,11 +515,11 @@ impl FrameIterator {
 struct CliArgs {
     video_filepath: String,
     max_width: Columns,
+    dry_run: bool,
     //
     // secret options for now; placeholders for future
     muted: bool,
     blocky: bool,
-    dry_run: bool,
 }
 
 // TODO: custom app events
@@ -1245,8 +1242,7 @@ fn _cmd_to_string(cmd: &std::process::Command) -> String {
     // becomes
     // "ffmpeg -ss 60.25 -i './file.mp4' -to 596.458333 './file_0.mp4'"
     //
-    // user-input filepaths may contain special characters,
-    // so wrap them with single quotes. (hopefully the filepaths don't contain single quotes)
+    // user-input filepaths may contain special characters, so wrap them with single quotes.
     //
     // maybe outsource to something like `bash %q cmd.args`?
     //
@@ -1352,14 +1348,14 @@ fn main() {
 
             match m.dry_run {
                 true => {
-                    let output = cmds
+                    let recipe = cmds
                         .iter()
                         .map(_cmd_to_string)
                         .map(|s| format!("  {}", s))
                         .collect::<Vec<String>>()
                         .join(";\n");
                     eprintln!("Here is the recipe from your dry run:\n");
-                    println!("{}", output);
+                    println!("{}", recipe);
                     eprintln!("");
                 }
                 false => {
@@ -1371,13 +1367,11 @@ fn main() {
                     }
                 }
             }
-
-            std::process::exit(0);
         }
         Err(msg) => {
             // app failed; explain why
             log::info!("Error: {}", msg.to_string());
-            write!(std::io::stderr(), "Error: {}\n", msg.to_string());
+            eprintln!("Error: {}\n", msg.to_string());
             std::process::exit(1);
         }
     };
