@@ -47,6 +47,7 @@ vic http://example.com/video.avi -w 20
 
 ```
 vic <filepath> [-w <int, default 40>]
+               [--dry-run]
                [--help|--version]
 ```
 
@@ -56,6 +57,9 @@ vic <filepath> [-w <int, default 40>]
 -w <int>          Max output width, in columns.
                   Use -w 9999 for fullscreen.
                   Defaults to 40.
+
+--dry-run         Instead of auto-running ffmpeg commands
+                  on finish, just print the commands to stdout.
 ```
 
 ### Controls

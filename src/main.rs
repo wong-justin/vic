@@ -179,6 +179,8 @@ struct Model {
 
     // for debugging, to check time elapsed since beginning
     start: std::time::Instant,
+
+    dry_run: bool, // determines end behavior
 }
 
 enum HoverMode {
@@ -520,7 +522,7 @@ struct CliArgs {
     // secret options for now; placeholders for future
     muted: bool,
     blocky: bool,
-    just_the_recipe: bool,
+    dry_run: bool,
 }
 
 // TODO: custom app events
@@ -548,11 +550,13 @@ fn init() -> Result<Model, String> {
    vic video.mp4
    vic video.mp4 -w=9999
    vic http://example.com/video.avi -w 20
+   vic video.webm -w 80 --dry-run
 
  _____
  USAGE
 
    vic <filepath> [-w <int, default 40>]
+                  [--dry-run]
                   [--help|--version]
  _______
  OPTIONS
@@ -560,6 +564,10 @@ fn init() -> Result<Model, String> {
    -w <int>          Max output width, in columns.
                      Use -w 9999 for fullscreen.
                      Defaults to 40.
+
+   --dry-run         Instead of auto-running ffmpeg commands
+                     on finish, just print the commands to stdout.
+
  ________
  CONTROLS
 
@@ -589,7 +597,7 @@ fn init() -> Result<Model, String> {
 
 ",
         // more examples: ffmpeg -i bigvideo.mp4 -vf scale="iw/4:ih/4" smallvideo.mp4 \
-        //   && vic small_video.mp4 --just-the-recipe
+        //   && vic small_video.mp4 --dry-run
         env!("CARGO_PKG_VERSION")
     );
 
@@ -620,7 +628,7 @@ fn init() -> Result<Model, String> {
             .unwrap_or(40),
         muted: pargs.contains("--muted"),
         blocky: pargs.contains("--blocky"),
-        just_the_recipe: pargs.contains("--just-the-recipe"),
+        dry_run: pargs.contains("--dry-run"),
     };
     log::info!("{:?}", args);
 
@@ -668,6 +676,7 @@ fn init() -> Result<Model, String> {
         recent_fps: None,
         start: std::time::Instant::now(),
         accumulated_time: 0.0,
+        dry_run: args.dry_run,
     };
 
     // enum TimerEvent {}
@@ -1143,7 +1152,6 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         MoveToNextLine(2),
     );
 
-
     // --- draw helper text and controls --- //
     //
     //  segment 2 of 3                   help ?
@@ -1216,6 +1224,7 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         Print("     . = advance one frame   \n"),
         MoveToColumn(1),
         Print("     ? = hide controls       \n"),
+        // TODO: enable / disable dry run
         MoveToColumn(1),
         Print(match num_segments {
             1 => "     q = quit                          \n".to_string(),
@@ -1227,6 +1236,44 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
 }
 
 // --- APP START --- //
+
+fn _cmd_to_string(cmd: &std::process::Command) -> String {
+    // convert a multi-string system command to a single POSIXy shell script
+    //
+    // example:
+    // Command("ffmpeg" "-ss" "60.25" "-i" "./file.mp4" "-to" "596.458333" "./test/file_0.mp4")
+    // becomes
+    // "ffmpeg -ss 60.25 -i './file.mp4' -to 596.458333 './file_0.mp4'"
+    //
+    // user-input filepaths may contain special characters,
+    // so wrap them with single quotes. (hopefully the filepaths don't contain single quotes)
+    //
+    // maybe outsource to something like `bash %q cmd.args`?
+    //
+    let mut chunks = std::iter::once(cmd.get_program())
+        .chain(cmd.get_args())
+        .map(|os_str: &std::ffi::OsStr| os_str.to_str().unwrap()) // panics if not UTF-8
+        .collect::<Vec<&str>>();
+
+    let [_0, _1, _2, _3, path1, _5, _6, path2] = chunks[..] else {
+        panic!("ffmpeg recipe does not match expected pattern")
+    };
+
+    return [
+        _0,
+        _1,
+        _2,
+        _3,
+        &format!("'{}'", path1), // TODO: escape any single quotes already present in paths
+        _5,
+        _6,
+        &format!("'{}'", path2),
+    ]
+    .join(" ");
+}
+
+// TODO: a unit test to make sure this brittle command destructuring does not accidentally break on
+// future updates
 
 // #[tokio::main]
 fn main() {
@@ -1261,10 +1308,12 @@ fn main() {
             let extension = filepath.extension().unwrap().to_str().unwrap();
             let filename = filepath.file_stem().unwrap().to_str().unwrap();
 
+            let mut cmds = Vec::<std::process::Command>::new();
+
             while let Some(end) = iter_markers.next() {
                 log::info!("trimming from {} to {}", start, end);
-                let process = std::process::Command::new("ffmpeg")
-                    .arg("-ss")
+                let mut cmd = std::process::Command::new("ffmpeg");
+                cmd.arg("-ss")
                     .arg(format!("{:.3}", start))
                     .arg("-i")
                     .arg(&m.frame_iterator.video_path)
@@ -1276,14 +1325,34 @@ fn main() {
                     // yes, i think it borks keyframes and ruins output videos
                     // .arg("-c")
                     // .arg("copy")
-                    .arg(outdir.join(format!("{}_{}.{}", filename, i, extension)))
-                    .stdout(std::io::stdout())
-                    .stderr(std::io::stderr())
-                    .output()
-                    .map_err(|_| "ffmpeg cutting process failed");
+                    .arg(outdir.join(format!("{}_{}.{}", filename, i, extension)));
+                log::info!("a recipe: {}", _cmd_to_string(&cmd));
 
+                cmds.push(cmd);
                 start = end;
                 i += 1;
+            }
+
+            match m.dry_run {
+                true => {
+                    let output = cmds
+                        .iter()
+                        .map(_cmd_to_string)
+                        .map(|s| format!("  {}", s))
+                        .collect::<Vec<String>>()
+                        .join(";\n");
+                    eprintln!("Here is the recipe from your dry run:\n");
+                    println!("{}", output);
+                    eprintln!("");
+                }
+                false => {
+                    for mut cmd in cmds {
+                        cmd.stdout(std::io::stdout())
+                            .stderr(std::io::stderr())
+                            .output()
+                            .map_err(|_| "ffmpeg command failed");
+                    }
+                }
             }
 
             std::process::exit(0);
