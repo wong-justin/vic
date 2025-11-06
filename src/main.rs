@@ -105,40 +105,57 @@ use crate::chafa::{Canvas, Config, SymbolMap, Symbols};
 
 // --- LOGS --- //
 
-struct LoggerToFile<'a> {
-    path: &'a str,
+struct FileLogger {
+    // should probably be a Option<Mutex<File>>> to safely write logs
+    // from multiple threads or multiple vic processes
+    // but Option<File> will suffice for now
+    file: Option<std::fs::File>,
+    // let user decide if and where to log
+    //
+    // previously was /tmp/vic_log
+    // consider also $LOCALAPPDATA/vic/log for windows,
+    // and maybe /var/vic_log, $HOME/.vic/log, or that $XDG_HOME thing for linux
 }
 
-impl log::Log for LoggerToFile<'_> {
+impl FileLogger {
+    pub fn init(path: Option<std::path::PathBuf>) -> Result<(), Box<dyn Error>> {
+        let file = match path {
+            None => None,
+            Some(_path) => std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(_path)
+                .ok(),
+        };
+        let logger = FileLogger { file };
+        LOGGER.set(logger).map_err(|_| "logger init failed")?;
+        log::set_logger(LOGGER.get().unwrap());
+        log::set_max_level(log::LevelFilter::Info);
+        Ok(())
+    }
+}
+
+impl log::Log for FileLogger {
     fn flush(&self) {}
     fn enabled(&self, metadata: &log::Metadata) -> bool {
         true
     }
     fn log(&self, record: &log::Record) {
-        if self.enabled(record.metadata()) {
-            let mut file = std::fs::OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(&self.path)
-                //
-                // Not sure what to do when log file fails.
-                // Either silently fail or crash. I choose crash
-                .expect("failure to open or read log file");
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+        if let Some(mut file) = self.file.as_ref() {
             writeln!(file, "{}", record.args());
         }
     }
 }
 
-static LOGGER: LoggerToFile = LoggerToFile {
-    // TODO: maybe $LOCALAPPDATA/vic/log for windows,
-    // and maybe $HOME/.vic/log for linux, or that $XDG_HOME thing
-    path: "/tmp/vic_log",
-};
+// --- MODEL, and other data structures --- //
+
+static LOGGER: std::sync::OnceLock<FileLogger> = std::sync::OnceLock::new();
 const DOWNSCALE_FACTOR: f64 = 0.5; // 0.125;
 const NUM_COLOR_CHANNELS: i32 = 3;
 const NUM_FRAMES_TO_TRACK_FPS: u8 = 10; // arbitrary interval to recalculate fps
-
-// --- MODEL, and other data structures --- //
 
 struct Model {
     terminal_cols: Columns,
@@ -516,6 +533,7 @@ struct CliArgs {
     video_filepath: String,
     max_width: Columns,
     dry_run: bool,
+    log_filepath: Option<std::path::PathBuf>,
     //
     // secret options for now; placeholders for future
     muted: bool,
@@ -1290,13 +1308,6 @@ mod tests {
 
 // #[tokio::main]
 fn main() {
-    log::set_logger(&LOGGER).map(|_| log::set_max_level(log::LevelFilter::Info));
-
-    log::info!(
-        "\n--- new session, version {} ---",
-        env!("CARGO_PKG_VERSION")
-    );
-
     let program_result = Program { init, view, update }.run();
     match program_result {
         Ok(mut m) => {
