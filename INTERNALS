@@ -72,6 +72,34 @@ inside a neovim :terminal session,
 use the :ShowKeys toggle plugin
 then screencap with obs
 
+nvim terminal scripted inputs:
+:call SendKeysSlowly("echo hello world\necho goodbye")
+function! SendKeysSlowly(command)
+    " Get ID of the current terminal buffer
+    let job_id = get(b:, 'terminal_job_id', -1)
+    if job_id == -1
+        echohl Error | echom "Not in a terminal buffer!" | echohl None
+        return
+    endif
+
+    for char in split(a:command, '\zs')
+        call chansend(job_id, char) " send keypress to terminal
+	redraw
+        sleep 100m
+    endfor
+
+    " call chansend(job_id, "\n") " aka enter
+endfunction
+
+BUT these chansend() keypresses wont be captured by the ShowKeys plugin
+
+see this lua version instead:
+:lua vim.api.nvim_feedkeys('allllllllll', 'n', true)
+:lua vim.api.nvim_feedkeys('echo hello world\n', 'n', true)
+
+BUT these nvim_feedkeys() keypresses aren't captured by ShowKeys either
+
+
 or for static images, consider
 ```
 vic ~/test/test.mp4 2>&1 | tee ~/test/vicscreenoutput
@@ -87,6 +115,32 @@ https://img.ly/blog/designing-a-timeline-for-mobile-video-editing/
 
 rust audio playback?
 https://github.com/RustAudio/rodio
+
+UI mockup ideas:
+
+┌─────────┬───v────────────────────────┐
+└─────────┴────────────────────────────┘
+ segment 2 of 2                   help?
+
+┌─┐       
+│ │       
+└─┘       
+────────────────────────────────────────
+  1:30 / 2:45      playing         x1.0
+ >█████████████████████▋              <
+ >  .   ..    |   .   .  .   :  .     <
+  * 2:01.521
+    2:02.107                       8/10
+
+────────────────────────────────────────
+
+
+ 0:12 / 9:56                    playing
+ ▁▁▁▁▁ ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+ ▎▎▎  │                               🮇
+ ▔▔▔▔▔ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+ segment 3 of 3                   help?
+
 
 ___
 PRE-WORK RITUAL

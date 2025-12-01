@@ -1007,6 +1007,8 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
     //   0-9 = skip to 0%, 10%, etc
     //     . = advance one frame
     //     q = finish, making 1 segment
+    //
+    // TODO: s or d = discard/keep segment
 
     // TODO: consider the lovely bottom-help text from bubbletea,
     // like in this demo: https://github.com/charmbracelet/wishlist
@@ -1030,8 +1032,9 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
             ),
         }),
         MoveToColumn(m.frame_iterator.output_cols - 3),
-        // Print("help".dark_grey()),
-        Print("help"),
+        // Print("help".dark_grey().bold()),
+        Print("h"),
+        Print("elp"),
         Print("?\n\n"),
         MoveToColumn(1),
     );
@@ -1071,7 +1074,7 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
         MoveToColumn(1),
         Print(match num_segments {
             1 => "     q = quit                          \n".to_string(),
-            _ => format!("     q = quit and cut into {} segments\n", num_segments),
+            _ => format!("     q = quit and cut into {} segments\n", num_segments), // and print {} recipes
         }),
         MoveToColumn(1),
         Print("                                        "),
@@ -1108,8 +1111,8 @@ fn init() -> Result<Model, String> {
                      Use -w 9999 for fullscreen.
                      Defaults to 40.
 
-   --dry-run         Instead of auto-running ffmpeg commands
-                     on finish, just print the recipe to stdout.
+   --dry-run         Instead of auto-running ffmpeg commands,
+                     just print the recipe to stdout.
 
    --log <path>      Write logs to this file during runtime.
 
