@@ -1289,7 +1289,7 @@ fn _cmd_to_string(cmd: &std::process::Command) -> String {
         .map(|os_str: &std::ffi::OsStr| os_str.to_str().unwrap()) // panics if not UTF-8
         .collect::<Vec<&str>>();
 
-    let [_0, _1, _2, _3, path1, _5, _6, path2] = chunks[..] else {
+    let [_0, _1, _2, _3, _4, _5, path1, path2] = chunks[..] else {
         panic!("ffmpeg recipe does not match expected pattern")
     };
 
@@ -1298,9 +1298,9 @@ fn _cmd_to_string(cmd: &std::process::Command) -> String {
         _1,
         _2,
         _3,
-        &format!("'{}'", path1), // TODO: escape any single quotes already present in paths
+        _4,
         _5,
-        _6,
+        &format!("'{}'", path1), // TODO: escape any single quotes already present in paths
         &format!("'{}'", path2),
     ]
     .join(" ");
@@ -1317,12 +1317,12 @@ mod tests {
         sample_cmd
             .arg("-ss")
             .arg(format!("{:.3}", 60))
-            .arg("-i")
-            .arg("./filename/with spaces.mp4")
             .arg("-to")
             .arg(format!("{:.3}", 123.456789))
+            .arg("-i")
+            .arg("./filename/with spaces.mp4")
             .arg("./filename/with spaces_0.mp4");
-        assert_eq!(_cmd_to_string(&sample_cmd), "ffmpeg -ss 60 -i './filename/with spaces.mp4' -to 123.457 './filename/with spaces_0.mp4'");
+        assert_eq!(_cmd_to_string(&sample_cmd), "ffmpeg -ss 60 -to 123.457 -i './filename/with spaces.mp4' './filename/with spaces_0.mp4'");
     }
 }
 
@@ -1359,10 +1359,10 @@ fn main() {
                 let mut cmd = std::process::Command::new("ffmpeg");
                 cmd.arg("-ss")
                     .arg(format!("{:.3}", start))
-                    .arg("-i")
-                    .arg(&m.frame_iterator.video_path)
                     .arg("-to")
                     .arg(format!("{:.3}", end))
+                    .arg("-i")
+                    .arg(&m.frame_iterator.video_path)
                     //
                     // TODO: confirm if -c copy uses millisecond-precision
                     // ie, will it ruin frame-perfect cuts?
