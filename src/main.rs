@@ -567,6 +567,8 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
                 KeyCode::Char(' ') => toggle_paused(m),
                 KeyCode::Char('h') => toggle_controls_visibility(m), // preserve old feature, backwards compat
                 KeyCode::Char('?') => toggle_controls_visibility(m),
+                KeyCode::Left => seek_backwards_5s(m),
+                KeyCode::Right => seek_forwards_5s(m),
                 KeyCode::Char('j') => seek_backwards_15s(m),
                 KeyCode::Char('l') => seek_forwards_15s(m),
                 KeyCode::Char('J') => goto_prev_marker(m),
@@ -743,6 +745,26 @@ fn update_if_moved_behind_segment(m: &mut Model) {
             false => break,
         }
     }
+}
+
+fn seek_backwards_5s(m: &mut Model) {
+    let frames_to_backtrack = (m.VIDEO_METADATA.fps * 5.0) as u32;
+    m.frame_number = std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
+    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
+
+    update_if_moved_behind_segment(m);
+    m.hovered_item.mode = HoverMode::Segments;
+}
+
+fn seek_forwards_5s(m: &mut Model) {
+    let frames_to_skip = (m.VIDEO_METADATA.fps * 5.0) as u32;
+    m.frame_number += frames_to_skip;
+    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
+
+    update_if_moved_past_segment(m);
+    m.hovered_item.mode = HoverMode::Segments;
 }
 
 fn seek_backwards_15s(m: &mut Model) {
@@ -1003,7 +1025,8 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
     //   J/L = prev/next marker
     //     s = keep segment
     // space = pause
-    //   j/l = skip back/forwards
+    //   ←/→ = back/forwards 5 secs
+    //   j/l = back/forwards 15 secs
     //   0-9 = skip to 0%, 10%, etc
     //     . = advance one frame
     //     q = finish, making 1 segment
@@ -1063,7 +1086,9 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
             false => " space = pause                 \n",
         }),
         MoveToColumn(1),
-        Print("   j/l = skip back/forwards  \n"),
+        Print("   j/l = back/forwards 15 secs \n"),
+        MoveToColumn(1),
+        Print("   ←/→ = back/forwards 5 secs \n"),
         MoveToColumn(1),
         Print("   0-9 = skip to 0%, 10%, etc\n"),
         MoveToColumn(1),
@@ -1114,24 +1139,25 @@ fn init() -> Result<Model, String> {
    --dry-run         Instead of auto-running ffmpeg commands,
                      just print the recipe to stdout.
 
-   --log <path>      Write logs to this file during runtime.
+   --log <path>      Write logs to this file.
 
  ________
  CONTROLS
 
    [ segment mode ]
 
+     m ....... make marker
      space ... play/pause
-     j/l ..... seek back/forwards
+     j/l ..... back/forwards 15 secs
+     ←/→ ..... back/forwards 5 secs
      0-9 ..... seek to 0%, 10%, etc
      . ....... advance one frame
-     m ....... make marker
      q ....... finish
 
    [ marker mode ]
 
-     M ....... delete marker
      J/L ..... goto prev/next marker
+     M ....... delete marker
 
  _____
  NOTES

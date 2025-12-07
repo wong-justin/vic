@@ -63,7 +63,7 @@ vic <filepath> [-w <int, default 40>]
 --dry-run         Instead of auto-running ffmpeg commands
                   on finish, just print the commands to stdout.
 
---log <path>      Write logs to this file during runtime.
+--log <path>      Write logs to this file.
 ```
 
 ### Controls
@@ -71,17 +71,18 @@ vic <filepath> [-w <int, default 40>]
 ```
 [ segment mode ]
 
+  m ....... make marker
   space ... play/pause
-  j/l ..... seek back/forwards
+  j/l ..... back/forwards 15 secs
+  ←/→ ..... back/forwards 5 secs
   0-9 ..... seek to 0%, 10%, etc
   . ....... advance one frame
-  m ....... make marker
   q ....... finish
 
 [ marker mode ]
 
-  M ....... delete marker
   J/L ..... goto prev/next marker
+  M ....... delete marker
 ```
 
 ## Notes
