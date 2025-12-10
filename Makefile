@@ -37,3 +37,52 @@ generate-tests:
 .PHONY: roadmap
 roadmap:
 	@git ls-files | grep -v Makefile | xargs grep -h TODO | perl -pe 's/^[ \/]*//'
+
+# deps: nvim, showkeys plugin, and screencaster like obs (not scripted)
+# perhaps disable default vim config with vim -u NORC, for reproducibility
+# Showkeys configured with border="solid", timeout=0.75, position="top-center"
+#
+# see also:
+# nvim -S myscript.vim -u NORC
+# and
+# function! TypeThenWaitPerChar(inputs, delay_ms)
+#     function! s:TypeChar(char, timer_id)
+#       call nvim_input(a:char)
+#       redraw
+#     endfunction
+#     let chars = split(a:inputs, '\zs')
+#     for i in range(len(chars))
+#       call timer_start(a:delay_ms * i, function('s:TypeChar', [chars[i]]))
+#     endfor
+# endfunction
+.PHONY: demo
+demo:
+	@nvim -c 'terminal' \
+	      -c 'call timer_start(3750, {-> execute("ShowkeysToggle")})' \
+	      -c 'let T = {i,d -> timer_start(d,{->nvim_input(i)}) } |'\
+'call T("a", 0) |'\
+'call T("vic", 300) |'\
+'call T(" t", 600) |'\
+'call T("est/", 900) |'\
+'call T("b", 1200) |'\
+'call T("bb_480p_24fps.avi", 1500) |'\
+'call T(" -w", 1800) |'\
+'call T(" 999", 2100) |'\
+'call T(" --dry-run", 2400) |'\
+'call T("\<CR>", 3000) |'\
+'call T("h", 4500) |'\
+'call T("8", 8000) |'\
+'call T("<Left>", 9500) |'\
+'call T("<Left>", 10000) |'\
+'call T("<Left>", 10500) |'\
+'call T("<Left> ", 11000) |'\
+'call T(".", 12500) |'\
+'call T(".", 12700) |'\
+'call T(".", 12900) |'\
+'call T(".", 13100) |'\
+'call T(".", 13300) |'\
+'call T(".", 13500) |'\
+'call T(".", 13700) |'\
+'call T(".", 14500) |'\
+'call T("m", 15300) |'\
+'call T("q\<ESC>", 16500) |' #'

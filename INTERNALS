@@ -68,39 +68,21 @@ keypresses so far are just for moving to different parts of the video and making
 
 ___
 some demo capture ideas:
-inside a neovim :terminal session,
-use the :ShowKeys toggle plugin
+
+demo is scripted in Makefile::demo
+it uses vimscript commands like
+
+nvim -c 'let T = {i,d -> timer_start(d,{->nvim_input(i)}) } |'\
+'call T("aecho hello world", 1000) |'\
+'call T("world\<CR>", 2000)'
+
+uses a neovim :terminal session
+and the :ShowkeysToggle plugin
 then screencap with obs
 
-nvim terminal scripted inputs:
-:call SendKeysSlowly("echo hello world\necho goodbye")
-function! SendKeysSlowly(command)
-    " Get ID of the current terminal buffer
-    let job_id = get(b:, 'terminal_job_id', -1)
-    if job_id == -1
-        echohl Error | echom "Not in a terminal buffer!" | echohl None
-        return
-    endif
+i tried chandsend() and nvim_feedkeys() but those inputs weren't captured by Showkeys, or maybe had trouble with lazyredraw, i forget
 
-    for char in split(a:command, '\zs')
-        call chansend(job_id, char) " send keypress to terminal
-	redraw
-        sleep 100m
-    endfor
-
-    " call chansend(job_id, "\n") " aka enter
-endfunction
-
-BUT these chansend() keypresses wont be captured by the ShowKeys plugin
-
-see this lua version instead:
-:lua vim.api.nvim_feedkeys('allllllllll', 'n', true)
-:lua vim.api.nvim_feedkeys('echo hello world\n', 'n', true)
-
-BUT these nvim_feedkeys() keypresses aren't captured by ShowKeys either
-
-
-or for static images, consider
+to get a reproducible static image demo, consider
 ```
 vic ~/test/test.mp4 2>&1 | tee ~/test/vicscreenoutput
 # print 2500 or however many lines of screen output it took to create the desired screen
