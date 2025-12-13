@@ -38,51 +38,84 @@ generate-tests:
 roadmap:
 	@git ls-files | grep -v Makefile | xargs grep -h TODO | perl -pe 's/^[ \/]*//'
 
-# deps: nvim, showkeys plugin, and screencaster like obs (not scripted)
-# perhaps disable default vim config with vim -u NORC, for reproducibility
-# Showkeys configured with border="solid", timeout=0.75, position="top-center"
-#
-# see also:
-# nvim -S myscript.vim -u NORC
-# and
-# function! TypeThenWaitPerChar(inputs, delay_ms)
-#     function! s:TypeChar(char, timer_id)
-#       call nvim_input(a:char)
-#       redraw
-#     endfunction
-#     let chars = split(a:inputs, '\zs')
-#     for i in range(len(chars))
-#       call timer_start(a:delay_ms * i, function('s:TypeChar', [chars[i]]))
-#     endfor
-# endfunction
+# TODO: automate obs recording as well
 .PHONY: demo
 demo:
-	@nvim -c 'terminal' \
-	      -c 'call timer_start(3750, {-> execute("ShowkeysToggle")})' \
-	      -c 'let T = {i,d -> timer_start(d,{->nvim_input(i)}) } |'\
-'call T("a", 0) |'\
-'call T("vic", 300) |'\
-'call T(" t", 600) |'\
-'call T("est/", 900) |'\
-'call T("b", 1200) |'\
-'call T("bb_480p_24fps.avi", 1500) |'\
-'call T(" -w", 1800) |'\
-'call T(" 999", 2100) |'\
-'call T(" --dry-run", 2400) |'\
-'call T("\<CR>", 3000) |'\
-'call T("h", 4500) |'\
-'call T("8", 8000) |'\
-'call T("<Left>", 9500) |'\
-'call T("<Left>", 10000) |'\
-'call T("<Left>", 10500) |'\
-'call T("<Left> ", 11000) |'\
-'call T(".", 12500) |'\
-'call T(".", 12700) |'\
-'call T(".", 12900) |'\
-'call T(".", 13100) |'\
-'call T(".", 13300) |'\
-'call T(".", 13500) |'\
-'call T(".", 13700) |'\
-'call T(".", 14500) |'\
-'call T("m", 15300) |'\
-'call T("q\<ESC>", 16500) |' #'
+	@# https://github.com/wong-justin/showkeys-noplug
+	@nvim -c 'lua '\
+	'recent_keypresses={} '\
+	'max_recent_keypresses=3 '\
+	'msg = " " '\
+	'width = vim.fn.strdisplaywidth(msg) '\
+	'buf = vim.api.nvim_create_buf(false, true) '\
+	'window_config = {relative="editor",width=width,height=1,col=0,row=1,style="minimal",border="solid"} '\
+	'window_id = nil '\
+	'hidden = false '\
+	'ns = vim.api.nvim_create_namespace("showkeysforknamespace") '\
+	'vim.api.nvim_set_hl(0, "PastHighlight", { default = true, link = "Visual" }) '\
+	'vim.api.nvim_set_hl(0, "CurrentHighlight", { default = true, link = "pmenusel" }) '\
+	'vim.on_key(function(_, char) '\
+	'  if hidden then '\
+	'    if window_id ~= nil then vim.api.nvim_win_close(window_id, true); end '\
+	'    window_id = nil '\
+	'    recent_keypresses = {} '\
+	'    return '\
+	'  end '\
+	'  if window_id == nil then window_id = vim.api.nvim_open_win(buf, false, window_config); end '\
+	'  vim.wo[window_id].winhl = "FloatBorder:Normal,Normal:Normal" '\
+	'  key = vim.fn.keytrans(char) '\
+	'  special_keys = {["<BS>"] = "󰁮 ",["<CR>"] = "󰘌",["<Space>"] = "󱁐",["<Up>"] = "󰁝",["<Down>"] = "󰁅",["<Left>"] = "󰁍",["<Right>"] = "󰁔",["<PageUp>"] = "Page 󰁝",["<PageDown>"] = "Page 󰁅",["<M>"] = "Alt",["<C>"] = "Ctrl"} '\
+	'  msg = special_keys[key] or key '\
+	'  table.insert(recent_keypresses, msg) '\
+	'  if #recent_keypresses > max_recent_keypresses then table.remove(recent_keypresses, 1) end '\
+	'  display_str = "  " .. table.concat(recent_keypresses, "   ") .. "  " '\
+	'  width = vim.fn.strdisplaywidth(display_str) '\
+	'  window_config.width = width '\
+	'  window_config.col = math.floor((vim.o.columns - width) / 2) '\
+	'  vim.api.nvim_win_set_config(window_id, window_config) '\
+	'  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {display_str}) '\
+	'  last_pos=1 '\
+	'  for i = 1, #recent_keypresses do '\
+	'    this_width = vim.fn.strlen(recent_keypresses[i]) '\
+	'    hl = "PastHighlight"; if i == #recent_keypresses then hl = "CurrentHighlight" end '\
+	'    vim.hl.range(buf, ns, hl, {0,last_pos}, {0,last_pos+this_width+2}) '\
+	'    last_pos = last_pos + 1 + this_width + 2 '\
+	'  end '\
+	'end) '\
+	'time = 0 '\
+	'T = function(inputs, delay_ms) vim.fn.timer_start(time + delay_ms, function() vim.api.nvim_input(inputs) end) time = time + delay_ms; end '\
+	'Hide = function() vim.fn.timer_start(time, function() hidden = true; end) end '\
+	'Show = function() vim.fn.timer_start(time, function() hidden = false; end) end '\
+	'vim.cmd("terminal") '\
+	''\
+	'Hide() '\
+	'T("a", 0) '\
+	'T("vic", 200) '\
+	'T(" t", 200) '\
+	'T("est/", 200) '\
+	'T("b", 200) '\
+	'T("bb_480p_24fps.avi", 200) '\
+	'T(" -w", 200) '\
+	'T(" 999", 200) '\
+	'T(" --dry-run", 200) '\
+	'T("<CR>", 600) '\
+	'Show() '\
+	'T("?", 1500) '\
+	'T("8", 2500) '\
+	'T("<Left>", 1500) '\
+	'T("<Left>", 500) '\
+	'T("<Left>", 500) '\
+	'T("<Left> ", 500) '\
+	'T(".", 200) '\
+	'T(".", 200) '\
+	'T(".", 200) '\
+	'T(".", 200) '\
+	'T(".", 200) '\
+	'T(".", 200) '\
+	'T(".", 200) '\
+	'T(".", 800) '\
+	'T("m", 800) '\
+	'T("q", 1500) '\
+	'Hide() '\
+	'T("<ESC>", 1500) '\
+	'T(":q<CR>", 1000) '
