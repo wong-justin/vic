@@ -95,7 +95,7 @@ struct Model {
     frame_number: u32,
 
     paused: bool,
-    markers: Vec<SecondsFloat>,
+    markers: Vec<Seconds>,
     speed: f32,
     hovered_item: Hovering, // current marker or segment
     hide_controls: bool,
@@ -103,7 +103,7 @@ struct Model {
 
     // for calculating next frame number
     prev_instant: std::time::Instant,
-    accumulated_time: SecondsFloat,
+    accumulated_time: Seconds,
 
     // for displaying fps
     recent_fps: Option<f64>,
@@ -112,7 +112,7 @@ struct Model {
     // maybe have derived attributes like:
     //   frame_number -> position_millis,
     //   duration_secs -> duration_millis,
-    //   markers<SecondsFloat> -> markers<FrameNumber>,
+    //   markers<Seconds> -> markers<FrameNumber>,
     //   markers -> segments,
     //   duration_secs -> max_frame_number
     // so computation is not repeated
@@ -133,7 +133,7 @@ struct Hovering {
     position: usize, // an index in a vec of markers/segments
 }
 
-type SecondsFloat = f64; // to indicate when we're using units of time
+type Seconds = f64; // to indicate when we're using units of time
 
 // note that crossterm uses u16, like in terminal::size() or MoveToColumn()
 // and that chafa uses i32, like in canvas.set_geometry()
@@ -160,9 +160,9 @@ struct VideoMetadata {
     width_px: i32,  // pixels
     height_px: i32, // pixels
     fps: f64,
-    duration_secs: SecondsFloat,
+    duration_secs: Seconds,
     // maybe max_frame_number: u32, // derived from duration and fps, for convenience
-    seconds_per_frame: SecondsFloat, // derived from fps, for convenience
+    seconds_per_frame: Seconds, // derived from fps, for convenience
 }
 
 fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box<dyn Error>> {
@@ -283,7 +283,7 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
     let duration_secs = ffprobe_properties
         .get("duration")
         .ok_or(format!("failed to get duration {}", plain_output))?
-        .parse::<SecondsFloat>()
+        .parse::<Seconds>()
         .map_err(|e| format!("failed to parse {} {}", e, plain_output))?;
 
     log!("{} {} {} {}", width, height, fps, duration_secs);
@@ -300,7 +300,7 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
 impl FrameIterator {
     fn _create_decoding_process(
         video_filepath: &str,
-        start_time: SecondsFloat,
+        start_time: Seconds,
     ) -> Result<std::process::ChildStdout, Box<dyn Error>> {
         // init long-running ffmpeg decoding process.
         // this is where a lot of the heavy lifting happens.
@@ -446,7 +446,7 @@ impl FrameIterator {
         return self.take_frame();
     }
 
-    fn goto_timestamp(&mut self, timestamp: SecondsFloat) -> Result<String, Box<dyn Error>> {
+    fn goto_timestamp(&mut self, timestamp: Seconds) -> Result<String, Box<dyn Error>> {
         // Start new process at any position in video.
         // This should be faster than reading far ahead in the old process,
         // and this enables "backward seeking" too.
@@ -555,7 +555,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
     let need_to_update_fps =
         m.frame_iterator.num_frames_rendered % NUM_FRAMES_TO_TRACK_FPS as u32 == 0;
     if need_to_update_fps {
-        let recent_time_elapsed: SecondsFloat = (now - m.last_fps_check).as_secs_f64();
+        let recent_time_elapsed: Seconds = (now - m.last_fps_check).as_secs_f64();
         m.recent_fps = Some(NUM_FRAMES_TO_TRACK_FPS as f64 / recent_time_elapsed);
         m.last_fps_check = now;
     } else {
@@ -606,7 +606,7 @@ fn frames_since_prev_instant(m: &mut Model) -> u32 {
     // account for accumulated deltas from rounding down.
     // the leftover time eventually adds up to frame's worth of compensated time
     // (like an extra day in a leap year)
-    let rounding_err: SecondsFloat =
+    let rounding_err: Seconds =
         elapsed_secs - (whole_elapsed_frames as f64 * m.VIDEO_METADATA.seconds_per_frame);
     m.accumulated_time += rounding_err;
 
@@ -680,7 +680,7 @@ fn update_if_moved_behind_segment(m: &mut Model) {
 fn seek_backwards_5s(m: &mut Model) {
     let frames_to_backtrack = (m.VIDEO_METADATA.fps * 5.0) as u32;
     m.frame_number = std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
-    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    let timestamp = m.frame_number as Seconds / m.VIDEO_METADATA.fps;
     m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
     update_if_moved_behind_segment(m);
@@ -690,7 +690,7 @@ fn seek_backwards_5s(m: &mut Model) {
 fn seek_forwards_5s(m: &mut Model) {
     let frames_to_skip = (m.VIDEO_METADATA.fps * 5.0) as u32;
     m.frame_number += frames_to_skip;
-    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    let timestamp = m.frame_number as Seconds / m.VIDEO_METADATA.fps;
     m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
     update_if_moved_past_segment(m);
@@ -700,7 +700,7 @@ fn seek_forwards_5s(m: &mut Model) {
 fn seek_backwards_15s(m: &mut Model) {
     let frames_to_backtrack = (m.VIDEO_METADATA.fps * 15.0) as u32;
     m.frame_number = std::cmp::max(m.frame_number as i32 - frames_to_backtrack as i32, 0) as u32;
-    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    let timestamp = m.frame_number as Seconds / m.VIDEO_METADATA.fps;
     m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
     update_if_moved_behind_segment(m);
@@ -710,7 +710,7 @@ fn seek_backwards_15s(m: &mut Model) {
 fn seek_forwards_15s(m: &mut Model) {
     let frames_to_skip = (m.VIDEO_METADATA.fps * 15.0) as u32;
     m.frame_number += frames_to_skip;
-    let timestamp = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+    let timestamp = m.frame_number as Seconds / m.VIDEO_METADATA.fps;
     m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
 
     update_if_moved_past_segment(m);
@@ -733,7 +733,7 @@ fn goto_prev_marker(m: &mut Model) {
                 mode: HoverMode::Markers,
                 position: new_position as usize,
             };
-            let timestamp: SecondsFloat = m.markers[new_position as usize];
+            let timestamp: Seconds = m.markers[new_position as usize];
             m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
             m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
             m.paused = true;
@@ -760,7 +760,7 @@ fn goto_next_marker(m: &mut Model) {
                 mode: HoverMode::Markers,
                 position: new_position,
             };
-            let timestamp: SecondsFloat = m.markers[new_position];
+            let timestamp: Seconds = m.markers[new_position];
             m.frame_number = (timestamp * m.VIDEO_METADATA.fps) as u32;
             m.frame = m.frame_iterator.goto_timestamp(timestamp).unwrap();
             m.paused = true;
@@ -773,7 +773,7 @@ fn create_marker(m: &mut Model) {
     match m.hovered_item.mode {
         HoverMode::Markers => (),
         HoverMode::Segments => {
-            let timestamp: SecondsFloat = m.frame_number as SecondsFloat / m.VIDEO_METADATA.fps;
+            let timestamp: Seconds = m.frame_number as Seconds / m.VIDEO_METADATA.fps;
             let pos = match m.markers.binary_search_by(|other| {
                 other.partial_cmp(&timestamp).expect("NaN is incomparable")
             }) {
@@ -811,7 +811,7 @@ fn advance_one_frame(m: &mut Model) {
 fn skip_to_percent(m: &mut Model, percent: u32) {
     // skip to arbitrary point in video. useful to avoid many repeated skips.
     // low-priority TODO: implement mouse listener to seek by clicking?
-    let timestamp: SecondsFloat = m.VIDEO_METADATA.duration_secs * percent as f64 / 100.0;
+    let timestamp: Seconds = m.VIDEO_METADATA.duration_secs * percent as f64 / 100.0;
     let frame_number = (timestamp * m.VIDEO_METADATA.fps).floor() as u32;
 
     let old_frame_number = m.frame_number;
@@ -828,7 +828,7 @@ fn skip_to_percent(m: &mut Model, percent: u32) {
 
 // --- VIEW --- //
 
-fn format_secs_to_mm_ss(seconds: SecondsFloat) -> String {
+fn format_secs_to_mm_ss(seconds: Seconds) -> String {
     let minutes = (seconds / 60.0).floor();
     let remaining_secs = (seconds - (minutes * 60.0)).floor();
     return format!("{}:{:0>2}", minutes, remaining_secs);
@@ -1179,7 +1179,7 @@ fn init() -> Result<Model, String> {
         paused: false,
         frame_number: 0,
         speed: 1.0,
-        markers: Vec::<SecondsFloat>::new(),
+        markers: Vec::<Seconds>::new(),
         hovered_item: Hovering {
             mode: HoverMode::Segments,
             position: 0,
