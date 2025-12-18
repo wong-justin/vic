@@ -1,46 +1,45 @@
-# summary of potential livereload tools:
-# - entr leaves tty available for my tui, but it fails to restart/send SIGTERM
-# - watchexec hogs tty so i cannot run a tui, although it restarts and exits well
-# - gaze leaves tty available for my tui, and restarts my tui/sends SIGTERM, but error messages are borked (see https://github.com/watchexec/watchexec/issues/194), and i cannot kill the gaze process gracefully
-#
-# also useful to run in other windows during development:
-# - tail -f /tmp/vic_log
-# - bacon, for better error/warning messages
-#
 .PHONY: dev
 dev:
+	@# summary of potential livereload tools:
+	@# - entr leaves tty available for my tui, but it fails to restart/send SIGTERM
+	@# - watchexec hogs tty so i cannot run a tui, although it restarts and exits well
+	@# - gaze leaves tty available for my tui, and restarts my tui/sends SIGTERM, but error messages are borked (see https://github.com/watchexec/watchexec/issues/194), and i cannot kill the gaze process gracefully
+	@#
+	@# also useful to run in other shells during development:
+	@# - tail -f /tmp/vic_log
+	@# - bacon, for better error/warning messages
 	gaze $$(git ls-files) -r -c 'cargo run ./test/bbb_480p_24fps.avi --dry-run --log=/tmp/vic_log'
 
-.PHONY: install
-install:
-	@echo TODO: install dependencies
-	@echo for now, just install test assets
+.PHONY: install-tests
+install-tests:
+	@# TODO: install dependencies. for now, just install some test assets
 	mkdir -p test
 	@# download links taken from: http://bbb3d.renderfarming.net/download.html
 	@# be sure to follow redirects, since these links may change over the years
-	curl -o test/bbb_480p_24fps.avi -L http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi # lite, 220MB
+	curl -o test/bbb_480p_24fps.avi -L http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi # liter, 220MB
 	# curl -o test/bbb_1080p_60fps.mp4 -L http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_1080p_60fps_normal.mp4 # heavy, 350MB
-	
-# perhaps something like:
-# ffmpeg create frames containing text label for each frame (1,2,etc)
-# ffmpeg create long, colorful .mp4
-# ffmpeg create short .mp4 with audio
-# ffmpeg create equivalent .opus
-#
-# not quite as good as testing videos from the wild,
-# but that's what gh issues are for i guess
+
 .PHONY: generate-tests
 generate-tests:
-	@echo todo
+	@# TODO: perhaps generate some test videos like:
+	@# ffmpeg create frames containing text label for each frame (1,2,etc)
+	@# ffmpeg create long, colorful .mp4
+	@# ffmpeg create short .mp4 with audio
+	@# ffmpeg create equivalent .opus
+	@#
+	@# not quite as good as testing videos from the wild,
+	@# but that's what gh issues are for i guess
 
-# simpler, but worse formatting: @rg TODO
 .PHONY: roadmap
 roadmap:
+	@# simpler, but worse formatting: @rg TODO
 	@git ls-files | grep -v Makefile | xargs grep -h TODO | perl -pe 's/^[ \/]*//'
 
-# TODO: automate obs recording as well
 .PHONY: demo
 demo:
+	@# TODO: fully automate obs recording (scenes, startup, splicing)
+	@#
+	uvx obs-cli record start
 	@# https://github.com/wong-justin/showkeys-noplug
 	@nvim -c 'lua '\
 	'recent_keypresses={} '\
@@ -54,6 +53,15 @@ demo:
 	'ns = vim.api.nvim_create_namespace("showkeysforknamespace") '\
 	'vim.api.nvim_set_hl(0, "PastHighlight", { default = true, link = "Visual" }) '\
 	'vim.api.nvim_set_hl(0, "CurrentHighlight", { default = true, link = "pmenusel" }) '\
+	'normal = vim.api.nvim_get_hl(0, { name = "Normal" }) '\
+	'vim.api.nvim_set_hl(0, "Normal", { bg = "NONE", fg=normal.fg }) '\
+	'vim.api.nvim_set_hl(0, "Error", {}) '\
+	'vim.api.nvim_set_hl(0, "DiagnosticUnderlineError", {}) '\
+	'vim.api.nvim_set_hl(0, "DiagnosticUnderlineWarn", {}) '\
+	'vim.api.nvim_set_hl(0, "DiagnosticUnderlineInfo", {}) '\
+	'vim.api.nvim_set_hl(0, "DiagnosticUnderlineHint", {}) '\
+	'vim.api.nvim_set_hl(0, "SpellCap", {}) '\
+	'vim.api.nvim_set_hl(0, "SpellLocal", {}) '\
 	'vim.on_key(function(_, char) '\
 	'  if hidden then '\
 	'    if window_id ~= nil then vim.api.nvim_win_close(window_id, true); end '\
@@ -98,10 +106,14 @@ demo:
 	'T(" -w", 200) '\
 	'T(" 999", 200) '\
 	'T(" --dry-run", 200) '\
-	'T("<CR>", 600) '\
+	'T("<CR>", 400) '\
 	'Show() '\
-	'T("?", 1500) '\
-	'T("8", 2500) '\
+	'T("?", 1000) '\
+	'T("l", 2000) '\
+	'T("l", 1000) '\
+	'T("l", 800) '\
+	'T("m", 800) '\
+	'T("8", 2000) '\
 	'T("<Left>", 1500) '\
 	'T("<Left>", 500) '\
 	'T("<Left>", 500) '\
@@ -115,7 +127,14 @@ demo:
 	'T(".", 200) '\
 	'T(".", 800) '\
 	'T("m", 800) '\
-	'T("q", 1500) '\
+	'T("J", 1200) '\
+	'T("L", 1000) '\
+	'T("J", 1000) '\
+	'T("M", 1000) '\
+	'T(" ", 800) '\
+	'T("q", 2000) '\
 	'Hide() '\
-	'T("<ESC>", 1500) '\
-	'T(":q<CR>", 1000) '
+	'T("<C-l>", 1500) '\
+	'T("#uvx obs-cli record stop<CR>", 1500) '\
+	'T("<ESC>", 1000) '\
+	'' # 'T(":q<CR>", 1000) '
