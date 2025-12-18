@@ -213,10 +213,10 @@ type Rows = u16;
 struct FrameIterator {
     canvas: chafa::Canvas,
     video_path: String,   // ideally path: P or &str, but String is just easier
-    input_width: i32,     // pixels
-    input_height: i32,    // pixels
     output_cols: Columns, // aka chars
     output_rows: Rows,    // aka lines
+    input_width_px: i32,
+    input_height_px: i32,
     stdout: std::process::ChildStdout, // pixels get piped to here
     // stderr: std::process::ChildStderr,
     // cur_frame_number: u32,
@@ -225,8 +225,8 @@ struct FrameIterator {
 }
 
 struct VideoMetadata {
-    width: i32,  // pixels
-    height: i32, // pixels
+    width_px: i32,  // pixels
+    height_px: i32, // pixels
     fps: f64,
     duration_secs: SecondsFloat,
     // maybe max_frame_number: u32, // derived from duration and fps, for convenience
@@ -357,8 +357,8 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
     log!("{} {} {} {}", width, height, fps, duration_secs);
 
     return Ok(VideoMetadata {
-        width: width,
-        height: height,
+        width_px: width,
+        height_px: height,
         fps: fps,
         seconds_per_frame: 1.0 / fps,
         duration_secs: duration_secs,
@@ -434,8 +434,8 @@ impl FrameIterator {
 
     fn new(
         video_filepath: String,
-        input_width: i32,
-        input_height: i32,
+        input_width_px: i32,
+        input_height_px: i32,
         output_cols: Columns,
         output_rows: Rows,
         blocky: bool,
@@ -472,12 +472,15 @@ impl FrameIterator {
         return Ok(Self {
             canvas: canvas,
             video_path: video_filepath,
-            input_width: input_width,
-            input_height: input_height,
+            input_width_px: input_width_px,
+            input_height_px: input_height_px,
             output_cols: output_cols,
             output_rows: output_rows,
             stdout: stdout,
-            pixel_buffer: vec![0u8; (input_width * input_height * NUM_COLOR_CHANNELS) as usize],
+            pixel_buffer: vec![
+                0u8;
+                (input_width_px * input_height_px * NUM_COLOR_CHANNELS) as usize
+            ],
             num_frames_rendered: 0,
         });
     }
@@ -489,9 +492,9 @@ impl FrameIterator {
         self.canvas.draw_all_pixels(
             chafa::PixelType::RGB8,
             &self.pixel_buffer,
-            self.input_width,
-            self.input_height,
-            (self.input_width * NUM_COLOR_CHANNELS) as i32,
+            self.input_width_px,
+            self.input_height_px,
+            (self.input_width_px * NUM_COLOR_CHANNELS) as i32,
         );
 
         let view_string = self.canvas.build_ansi();
@@ -1229,15 +1232,15 @@ fn init() -> Result<Model, String> {
         .map_err(|e| format!("failed to get video metadata {}", e))?;
     let fps = video_metadata.fps;
 
-    let aspect_ratio = video_metadata.width as f64 / video_metadata.height as f64;
+    let aspect_ratio = video_metadata.width_px as f64 / video_metadata.height_px as f64;
     let output_cols = std::cmp::min(cols - 2, args.max_width - 2) as Columns;
     let output_rows = (output_cols as f64 / aspect_ratio / 2.0).ceil() as Rows;
     log!("{:?} {:?} {:?}", aspect_ratio, output_cols, output_rows);
 
     let frame_iterator = FrameIterator::new(
         args.video_filepath.to_string(),
-        (video_metadata.width as f64 * DOWNSCALE_FACTOR) as i32,
-        (video_metadata.height as f64 * DOWNSCALE_FACTOR) as i32,
+        (video_metadata.width_px as f64 * DOWNSCALE_FACTOR) as i32,
+        (video_metadata.height_px as f64 * DOWNSCALE_FACTOR) as i32,
         output_cols,
         output_rows,
         args.blocky,
