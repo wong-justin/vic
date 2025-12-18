@@ -16,6 +16,10 @@ jobs:
 
     steps:
     
+    - name: Update apt
+      run:
+        sudo apt-get update
+        
     - name: Install glib dev files
       run:
         sudo apt-get install libglib2.0-dev
