@@ -39,10 +39,6 @@ pico-args =  { version = "= 0.5.0", features = ["eq-separator"] }
   # this is declarative, which is more maintainable than hand-rolled imperative parsing.
   # this is a small dependency
 
-log = "= 0.4.20"
-  # justification: logs are necessary since TUI blocks stderr/stdout.
-  # this is a small dependency
-
 # tokio = { version = "= 1.38.1", features = ["full"] }
   # justification: need async, else heavy CPU processing (ffmpeg/chafa) will block UI and feel terrible. tokio is the most widely supported and talked about async lib, so I should be able to learn tokio the easiest
   #

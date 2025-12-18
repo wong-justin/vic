@@ -95,7 +95,6 @@ use crossterm::{
     style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor, Stylize},
     terminal,
 };
-use log::info;
 
 mod tui;
 use crate::tui::{Program, UpdateResult};
@@ -104,19 +103,10 @@ use crate::chafa::{Canvas, Config, SymbolMap, Symbols};
 
 // --- LOGS --- //
 
-struct FileLogger {
-    // should probably be a Option<Mutex<File>>> to safely write logs
-    // from multiple threads or multiple vic processes
-    // but Option<File> will suffice for now
-    file: Option<std::fs::File>,
-    // let user decide if and where to log
-    //
-    // previously was /tmp/vic_log
-    // consider also $LOCALAPPDATA/vic/log for windows,
-    // and maybe /var/vic_log, $HOME/.vic/log, or that $XDG_HOME thing for linux
-}
-
-impl FileLogger {
+// grouping some static functions
+// they access the init-once global constant LOGFILE
+pub struct Logs {}
+impl Logs {
     pub fn init(path: Option<std::path::PathBuf>) -> Result<(), Box<dyn Error>> {
         let file = match path {
             None => None,
@@ -126,32 +116,37 @@ impl FileLogger {
                 .open(_path)
                 .ok(),
         };
-        let logger = FileLogger { file };
-        LOGGER.set(logger).map_err(|_| "logger init failed")?;
-        log::set_logger(LOGGER.get().unwrap());
-        log::set_max_level(log::LevelFilter::Info);
+        LOGFILE.set(Some(std::sync::Mutex::new(file.unwrap())));
         Ok(())
+    }
+
+    pub fn append(msg: String) {
+        if let Some(Some(file)) = LOGFILE.get() {
+            if let Ok(mut file) = file.lock() {
+                writeln!(file, "{}", msg).ok();
+            }
+        }
     }
 }
 
-impl log::Log for FileLogger {
-    fn flush(&self) {}
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        true
-    }
-    fn log(&self, record: &log::Record) {
-        if !self.enabled(record.metadata()) {
-            return;
-        }
-        if let Some(mut file) = self.file.as_ref() {
-            writeln!(file, "{}", record.args());
-        }
-    }
+#[macro_export]
+macro_rules! log {
+    // usage:
+    // log!("{}", some_var)
+    //
+    // more convenient than:
+    // Logs::append(format!("{}", some_var))
+    ($($arg:tt)*) => {
+        Logs::append(format!($($arg)*))
+    };
 }
 
 // --- MODEL, and other data structures --- //
 
-static LOGGER: std::sync::OnceLock<FileLogger> = std::sync::OnceLock::new();
+// LOGFILE is None if user doesn't provide log filepath, else Some(Mutex(File))
+// mutex file is safe for writing from multiple threads or vic processes
+static LOGFILE: std::sync::OnceLock<Option<std::sync::Mutex<std::fs::File>>> =
+    std::sync::OnceLock::new();
 const DOWNSCALE_FACTOR: f64 = 0.5; // 0.125;
 const NUM_COLOR_CHANNELS: i32 = 3;
 const NUM_FRAMES_TO_TRACK_FPS: u8 = 10; // arbitrary interval to recalculate fps
@@ -317,7 +312,7 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
     // ```
 
     let single_line_output = plain_output.trim().replace('\n', ",");
-    log::info!("{}\n{}", single_line_output, err);
+    log!("{}\n{}", single_line_output, err);
 
     let mut ffprobe_properties = std::collections::HashMap::<&str, &str>::new();
 
@@ -359,7 +354,7 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
         .parse::<SecondsFloat>()
         .map_err(|e| format!("failed to parse {} {}", e, plain_output))?;
 
-    log::info!("{} {} {} {}", width, height, fps, duration_secs);
+    log!("{} {} {} {}", width, height, fps, duration_secs);
 
     return Ok(VideoMetadata {
         width: width,
@@ -427,7 +422,7 @@ impl FrameIterator {
             .spawn()
             .map_err(|_| "ffmpeg decoding process failed")?;
 
-        log::info!("{}", "created ffmpeg decoding process");
+        log!("{}", "created ffmpeg decoding process");
 
         let stdout = process
             .stdout
@@ -636,7 +631,7 @@ fn update(m: &mut Model, terminal_event: Event) -> UpdateResult {
 
     let need_to_log = m.frame_iterator.num_frames_rendered % 100 == 1;
     if need_to_log {
-        log::info!(
+        log!(
             "{:?} {:?} {:?} {:?}",
             now - m.start,
             m.prev_instant,
@@ -686,7 +681,7 @@ fn frames_since_prev_instant(m: &mut Model) -> u32 {
         m.accumulated_time -= m.VIDEO_METADATA.seconds_per_frame;
     }
 
-    // log::info!("{:?} {:?} {:?} {:?}",
+    // log!("{:?} {:?} {:?} {:?}",
     //            elapsed_secs,
     //            whole_elapsed_frames,
     //            extra_time,
@@ -704,7 +699,7 @@ fn toggle_paused(m: &mut Model) {
 
 fn toggle_controls_visibility(m: &mut Model) {
     m.hide_controls = !m.hide_controls;
-    log::info!("hide controls? {:?}", m.hide_controls);
+    log!("hide controls? {:?}", m.hide_controls);
     m.needs_to_clear = true; // controls will still show at bottom unless cleared/drawn over
 }
 
@@ -850,7 +845,7 @@ fn create_marker(m: &mut Model) {
                 Ok(pos) | Err(pos) => pos,
             };
             m.markers.insert(pos, timestamp);
-            log::info!("{:.3}", timestamp);
+            log!("{:.3}", timestamp);
         }
     }
 }
@@ -1204,6 +1199,11 @@ fn init() -> Result<Model, String> {
             .unwrap_or(40),
         dry_run: pargs.contains("--dry-run"),
         log_filepath: pargs
+            // let user decide if and where to log
+            //
+            // early versions were hardcoded as /tmp/vic_log
+            // consider also $LOCALAPPDATA/vic/log for windows,
+            // and maybe /var/vic_log, $HOME/.vic/log, or that $XDG_HOME thing for linux
             .opt_value_from_str::<_, std::path::PathBuf>("--log")
             .map_err(|e| "failed to parse --log. did you include a filepath?")?,
         // .map(|opt_pathbuf| opt_pathbuf.display().to_string()), // map from Option<PathBuf> to Option<&str>
@@ -1214,13 +1214,12 @@ fn init() -> Result<Model, String> {
     // println!("{:?}", args);
     // std::process::exit(0);
 
-    // Init logging.
-    FileLogger::init(args.log_filepath.clone());
-    log::info!(
+    Logs::init(args.log_filepath.clone());
+    log!(
         "\n--- new session, version {} ---",
         env!("CARGO_PKG_VERSION")
     );
-    log::info!("{:?}", args);
+    log!("{:?}", args);
 
     // Init app state.
     let (cols, rows): (Columns, Rows) =
@@ -1233,7 +1232,7 @@ fn init() -> Result<Model, String> {
     let aspect_ratio = video_metadata.width as f64 / video_metadata.height as f64;
     let output_cols = std::cmp::min(cols - 2, args.max_width - 2) as Columns;
     let output_rows = (output_cols as f64 / aspect_ratio / 2.0).ceil() as Rows;
-    log::info!("{:?} {:?} {:?}", aspect_ratio, output_cols, output_rows);
+    log!("{:?} {:?} {:?}", aspect_ratio, output_cols, output_rows);
 
     let frame_iterator = FrameIterator::new(
         args.video_filepath.to_string(),
@@ -1381,7 +1380,7 @@ fn main() {
             let mut cmds = Vec::<std::process::Command>::new();
 
             while let Some(end) = iter_markers.next() {
-                log::info!("trimming from {} to {}", start, end);
+                log!("trimming from {} to {}", start, end);
                 let mut cmd = std::process::Command::new("ffmpeg");
                 cmd.arg("-ss")
                     .arg(format!("{:.3}", start))
@@ -1396,7 +1395,7 @@ fn main() {
                     // .arg("-c")
                     // .arg("copy")
                     .arg(outdir.join(format!("{}_{}.{}", filename, i, extension)));
-                log::info!("a recipe: {}", _cmd_to_string(&cmd));
+                log!("a recipe: {}", _cmd_to_string(&cmd));
 
                 cmds.push(cmd);
                 start = end;
@@ -1427,7 +1426,7 @@ fn main() {
         }
         Err(msg) => {
             // app failed; explain why
-            log::info!("Error: {}", msg.to_string());
+            log!("Error: {}", msg.to_string());
             eprintln!("Error: {}\n", msg.to_string());
             std::process::exit(1);
         }
