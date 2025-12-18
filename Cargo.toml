@@ -6,7 +6,7 @@
 
 [package]
 name = "vic" 
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
   # https://doc.rust-lang.org/edition-guide/rust-2021/index.html
   # 2015 edition == 1.0
