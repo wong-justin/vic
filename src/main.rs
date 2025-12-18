@@ -7,77 +7,9 @@
 // then we add video editing controls/state
 //
 // requires:
-// - libchafa, dynamically linked (since my static build isn't working)
+// - libchafa, dynamically linked (maybe static build eventually)
 // - ffmpeg on $PATH, tested with version 3.4.8
-// - some rust dependencies like crossterm
-//
-// ----------------------------------------
-// lesser priorities:
-//
-// TODO: use chafa::canvas.print_rows() so i dont have to undo line work
-//
-// TODO: replace all .ok_or(format!(...)) with .ok_or_else(|| format!(...))
-// see: https://medium.com/@techhara/rust-tip-and-trick-2-5a92641191f6
-//
-// TODO: use generic Pathlike P instead of filepath: String
-// and figure out generic type signatures everywhere
-//
-// ----------------------------------------
-//
-// LEARNINGS:
-//
-// - can't declare Box[] of large size because stack isnt that big.
-// instead, declare vec[] and then .into_boxed_slice() will avoid initializing on stack
-//
-// - "Slices are similar to arrays, but their length is not known at compile time.
-// Instead, a slice is a two-word object; the first word is a pointer to the data,
-// the second word is the length of the slice."
-//
-// - slice = &array[start .. endplusone]
-//
-// - "Arrays are stack allocated."
-// https://doc.rust-lang.org/rust-by-example/primitives/array.html
-//
-// - "Writing more than a pipe buffer’s worth of input to stdin without also reading stdout and
-// stderr at the same time may cause a deadlock."
-//
-// - Vec seems faster than box. idk why.
-//
-// - looping read_exact() 30x seems faster than reading ffmpeg output stream into a buffer 30x as
-// large. idk why.
-//
-// - not sure how to seek backwards except for caching frames/data after reading it
-//
-// - maybe framereading process can keep reading as long as possible, while display process will
-// only request frames less frequently
-//
-// - making a new vec buffer each render call seems nearly as fast
-// as using one permanently assigned vec, surprisingly
-//
-// - giving the decoding process a head start and caching first few frames might also help it feel
-// smoother
-//
-// - internally, chafa represents each char as 8x8 bitmap.
-// so a canvas of 1 row of 2 chars has 8x8 internal resolution
-// see: chafa/internal/chafa-symbols-block.h
-//
-// - a random data point on my machine:
-// ffmpeg decoding 60fps 180p video into raw frames into /dev/null takes
-// ~3.5 mins, with 1.5GB/sec throughput, and results in 115GB of raw pixel frame output
-//
-// - usize is meant for referencing memory locations. so dont use it for typical application
-// properties.
-//
-// perhaps learn more from:
-// https://github.com/jart/hiptext/blob/master/src/movie.cc
-// https://github.com/zmwangx/rust-ffmpeg/blob/master/examples/dump-frames.rs
-// https://github.com/maxcurzi/tplay/blob/main/src/pipeline/frames.rs
-// https://gist.github.com/AndreaCatania/2b708750ef62171f51c7038e99676822
-// https://github.com/oddity-ai/video-rs
-// https://medium.com/init-deep-dive/rust-video-frame-extraction-speed-comparison-4d33fcc99405
-// chafa_src/tools/chafa/chafa.c::line2963+ while (is_animation)
-// libavformat
-// libavutil
+// - one direct rust dependency (crossterm)
 
 #![allow(unused_variables)]
 #![allow(unused_imports)]
@@ -206,17 +138,17 @@ type SecondsFloat = f64; // to indicate when we're using units of time
 // note that crossterm uses u16, like in terminal::size() or MoveToColumn()
 // and that chafa uses i32, like in canvas.set_geometry()
 //
-// assuming terminal size is under u16::MAX = 65_535u16 cols/lines
+// assuming terminal size is under u16::MAX = 65_535 cols/lines
 type Columns = u16;
 type Rows = u16;
 
 struct FrameIterator {
     canvas: chafa::Canvas,
-    video_path: String,   // ideally path: P or &str, but String is just easier
-    output_cols: Columns, // aka chars
-    output_rows: Rows,    // aka lines
+    video_path: String, // ideally path: P or &str, but String is just easier
     input_width_px: i32,
     input_height_px: i32,
+    output_cols: Columns,              // aka chars
+    output_rows: Rows,                 // aka lines
     stdout: std::process::ChildStdout, // pixels get piped to here
     // stderr: std::process::ChildStderr,
     // cur_frame_number: u32,
@@ -1029,8 +961,6 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
     //     . = advance one frame
     //     q = finish, making 1 segment
     //
-    // TODO: s or d = discard/keep segment
-
     // TODO: consider the lovely bottom-help text from bubbletea,
     // like in this demo: https://github.com/charmbracelet/wishlist
 
@@ -1076,8 +1006,6 @@ fn view(m: &Model, outbuf: &mut impl std::io::Write) {
             (HoverMode::Markers, 1) => "",  // cannot nav left or right
             _ => "   J/L = prev/next marker    \n",
         }),
-        // TODO: if m.current_segment.is_removed, then text = "keep segment"
-        // Print("     s = remove segment        "),
         MoveToColumn(1),
         Print(match m.paused {
             true => " space = unpause               \n",
@@ -1134,8 +1062,8 @@ fn init() -> Result<Model, String> {
                      Use -w 9999 for fullscreen.
                      Defaults to 40.
 
-   --dry-run         Instead of auto-running ffmpeg commands,
-                     just print the recipe to stdout.
+   --dry-run         Instead of running ffmpeg on finish,
+                     just print the commands to stdout.
 
    --log <path>      Write logs to this file.
 
@@ -1187,10 +1115,10 @@ fn init() -> Result<Model, String> {
     let args = CliArgs {
         video_filepath: pargs
             .free_from_str::<std::path::PathBuf>()
-            // Note: commands like `vic -w 20 video.mp4` will fail, but not on this error,
+            // Note: positional args must be listed first, like `vic video.mp4 -w 20`
             // because pargs always assumes arg[1] is a valid positional arg.
             // This is a limitation of the pargs library.
-            // Positional args must be listed first, like `vic video.mp4 -w 20`
+            // Commands like `vic -w 20 video.mp4` will fail, but not on this error.
             .map_err(|e| {
                 "failed to parse <filepath>. is the first cli argument the path to a video?"
             })?

@@ -1,13 +1,11 @@
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-
+# to treat this dir as a monorepo, which means sharing a Cargo.lock and a target/ dir
 # [workspace]
 # members = ["chafa-sys"]
 
-
 [package]
 name = "vic" 
-  # clark, vide, vedi, vicu ... ?
 version = "0.7.0"
 edition = "2021"
   # https://doc.rust-lang.org/edition-guide/rust-2021/index.html
@@ -16,12 +14,11 @@ edition = "2021"
   # 2021 edition == 1.56.0
   # 2024 edition anticipated to be 1.82.0
 
-
-# [[bin]]
-# edition = "2021"
-# name = "vic"
-# path = "src/main.rs"
-
+# cargo looks at src/main.rs by default, and names the binary [package]name by default,
+# but be explicit here just to be safe and remind me what happens
+[[bin]]
+name = "vic"
+path = "src/main.rs"
 
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html
 [dependencies]
@@ -40,7 +37,10 @@ pico-args =  { version = "= 0.5.0", features = ["eq-separator"] }
   # this is a small dependency
 
 # tokio = { version = "= 1.38.1", features = ["full"] }
-  # justification: need async, else heavy CPU processing (ffmpeg/chafa) will block UI and feel terrible. tokio is the most widely supported and talked about async lib, so I should be able to learn tokio the easiest
+  # justification: i probably need async, 
+  # else heavy CPU processing (ffmpeg/chafa) will block UI and feel terrible.
+  # tokio is the most widely supported and talked about async lib,
+  # so maybe tokio will be the easiest for me to learn.
   #
   # 1.38.1 is last version of tokio using rust-version 1.65.0
 
