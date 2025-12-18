@@ -61,8 +61,8 @@ vic <filepath> [-w <int, default 40>]
                   Use -w 9999 for fullscreen.
                   Defaults to 40.
 
---dry-run         Instead of auto-running ffmpeg commands
-                  on finish, just print the commands to stdout.
+--dry-run         Instead of running ffmpeg on finish,
+                  just print the commands to stdout.
 
 --log <path>      Write logs to this file.
 ```

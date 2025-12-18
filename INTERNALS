@@ -1,12 +1,13 @@
 vic depends on ffmpeg and chafa
 
 vic makes ffmpeg calls, assuming ffmpeg is on $PATH:
-- main::get_ffprobe_video_metadata() calls ffprobe (a sibling of ffmpeg) to get video dimensions and framerate
+- main::get_ffprobe_video_metadata() calls `ffprobe` (a sibling of ffmpeg) to get video dimensions and framerate
 - main::FrameIterator calls ffmpeg to decode a video file into rgb bytes
 - main::main() calls ffmpeg to cut the video into segments (if any segments were made)
 
 calling ffmpeg process on $PATH seemed easier than trying to link ffmpeg libraries
 one less build step
+not to mention potential license conflicts
 ffmpeg performance still seems fine
 hopefully there's no downsides
 
@@ -27,6 +28,7 @@ static builds involve several new challenges, including glib
 glib like a third-party stdlib for C, including threading implementations, string handling, etc
 glib is chafa's only dependency
 building / statically linking glib is nontrivial
+investigate alpine musl satic glib build mentioned in comment on issue #1
 
 src/chafa.rs wraps the lowish-level chafa bindings (eg. unsafe chafa_canvas_new() and unsafe chafa_canvas_unref()) into high-level rust structs (eg. Canvas impl new() and drop())
 mainly just hiding C pointers and exposing 
@@ -43,14 +45,14 @@ update (model, event) -> continue/finish/failed
 
 uses crossterm crate for a standardized API for terminal emulator communication
 
-current, naive event loop:
-frequently polling the terminal for events like keypresses or resizes
+current, naive event loop (currently tick every 16ms):
+frequently polling the terminal for events like keypresses or resizes 
 responding to any events received
 drawing new frames when appropriate (like ~33ms for 30fps videos) (or after a keypress)
 no multithreaded/async event loop yet
 
 all TUI output is written to stderr on the alternate tty buffer
-(stdout is reserved for potential messages after app shutdown, e.g. `vic video.mp4 --print-timestamps`)
+(stdout is reserved for potential messages after app shutdown, i.e. `vic video.mp4 --dry-run`)
 
 ___
 src/main.rs::FrameIterator is where ffmpeg and chafa meet
@@ -67,20 +69,9 @@ src/main.rs::update() is a big match statement handling events and keypresses
 keypresses so far are just for moving to different parts of the video and making/deleting markers
 
 ___
-some demo capture ideas:
-
 demo is scripted in Makefile::demo
-it uses vimscript commands like
-
-nvim -c 'let T = {i,d -> timer_start(d,{->nvim_input(i)}) } |'\
-'call T("aecho hello world", 1000) |'\
-'call T("world\<CR>", 2000)'
-
-uses a neovim :terminal session
-and the :ShowkeysToggle plugin
-then screencap with obs
-
-i tried chandsend() and nvim_feedkeys() but those inputs weren't captured by Showkeys, or maybe had trouble with lazyredraw, i forget
+uses a neovim :terminal session and some lua to show keypresses, taken from the Showkeys plugin
+then screencap with something like obs, probably uvx obs-cli
 
 to get a reproducible static image demo, consider
 ```
@@ -123,6 +114,52 @@ UI mockup ideas:
  ▔▔▔▔▔ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
  segment 3 of 3                   help?
 
+___
+lesser priorities:
+
+TODO: use chafa::canvas.print_rows() so i dont have to undo line work
+
+TODO: replace all .ok_or(format!(...)) with .ok_or_else(|| format!(...))
+see: https://medium.com/@techhara/rust-tip-and-trick-2-5a92641191f6
+
+TODO: use generic Pathlike P instead of filepath: String
+and figure out generic type signatures everywhere
+
+___
+misc notes:
+
+- internally, chafa represents each char as 8x8 bitmap.
+so a canvas of 1 row of 2 chars has 8x8 internal resolution
+see: chafa/internal/chafa-symbols-block.h
+
+- a random data point on my older windows machine, i5 processor:
+ffmpeg decoding 60fps 180p video into raw frames into /dev/null takes ~3.5 mins, with 1.5GB/sec throughput, and results in 115GB of raw pixel frame output
+
+- looping read_exact() 30x seems faster than reading ffmpeg output stream into a buffer 30x as large. idk why.
+
+- not sure how to seek backwards except for caching frames/data after reading it
+
+- "Writing more than a pipe buffer’s worth of input to stdin without also reading stdout and stderr at the same time may cause a deadlock."
+
+- maybe framereading process can keep reading as long as possible, while display process will only request frames less frequently. also giving the decoding process a head start and caching first few frames might help it feel smoother
+
+- making a new vec buffer each render call seems nearly as fast as using one permanently assigned vec, surprisingly
+
+- usize is meant for referencing memory locations. so dont use it for typical application properties.
+
+- can't declare Box[] of large size because stack isnt that big.
+instead, declare vec[] and then .into_boxed_slice() will avoid initializing on stack
+
+perhaps learn more from:
+https://github.com/jart/hiptext/blob/master/src/movie.cc
+https://github.com/zmwangx/rust-ffmpeg/blob/master/examples/dump-frames.rs
+https://github.com/maxcurzi/tplay/blob/main/src/pipeline/frames.rs
+https://gist.github.com/AndreaCatania/2b708750ef62171f51c7038e99676822
+https://github.com/oddity-ai/video-rs
+https://medium.com/init-deep-dive/rust-video-frame-extraction-speed-comparison-4d33fcc99405
+chafa_src/tools/chafa/chafa.c::line2963+ while (is_animation)
+libavformat
+libavutil
 
 ___
 PRE-WORK RITUAL
@@ -146,5 +183,3 @@ magic project thesis:
 work log: date, time -- duration. -- entry point -- what got done?
 - oct 16, 9:30am -- ?? mins. -- task: work on adding UI thread and processing thread
 - ??, next entry point: ??
-
-
