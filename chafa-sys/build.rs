@@ -96,6 +96,7 @@ fn link_dynamic() {
     pkg_config::probe_library("chafa").expect("pkg-config could not find chafa");
 }
 
+#[cfg(feature = "bindgen")]
 fn _create_bindings() {
     // TODO: replace this with a cli command
     // this function was run once manually, and the output bindings.rs was copied to src/
