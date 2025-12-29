@@ -12,7 +12,7 @@ edition = "2021"
   # 2015 edition == 1.0
   # 2018 edition == 1.31.0
   # 2021 edition == 1.56.0
-  # 2024 edition anticipated to be 1.82.0
+  # 2024 edition == 1.85.0
 
 # cargo looks at src/main.rs by default, and names the binary [package]name by default,
 # but be explicit here just to be safe and remind me what happens

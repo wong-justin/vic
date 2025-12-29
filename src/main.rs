@@ -11,10 +11,8 @@
 // - ffmpeg on $PATH, tested with version 3.4.8
 // - one direct rust dependency (crossterm)
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
+#![allow(unused)]
 #![allow(non_snake_case)]
-#![allow(dead_code)]
 
 use std::error::Error;
 use std::io::{BufRead, Read, Write};
@@ -48,6 +46,7 @@ impl Logs {
                 .open(_path)
                 .ok(),
         };
+        // todo: fix error if file is none
         LOGFILE.set(Some(std::sync::Mutex::new(file.unwrap())));
         Ok(())
     }

@@ -7,10 +7,13 @@ https://github.com/user-attachments/assets/340596e9-f060-4454-833d-8d62af01ccdd
 
 ## Building
 
+`vic` requires [`ffmpeg`](https://ffmpeg.org//download.html) to be on `$PATH` during runtime.
+
+`vic` is linked with [`chafa`](https://hpjansson.org/chafa/), a C library that makes pretty pictures in the terminal. 
+
 ### Linux
 
-`vic` is dynamically linked with [`chafa`](https://hpjansson.org/chafa/), a C library that makes pretty pictures. 
-Install `chafa` from your package manager, or build it from source:
+Install `chafa` from your package manager, or build it from source with something like:
 
 ```
 apt-get install libglib2.0-dev
@@ -29,12 +32,9 @@ Make sure everything is compiled and linked correctly by running `cargo test`.
 
 You can find the built binary at `target/debug/vic`, or install it with `cargo install --path .`
 
-`vic` requires [`ffmpeg`](https://ffmpeg.org//download.html) to be on `$PATH` during runtime.
-
 ### Static binaries
 
-Coming eventually! 
-See [this issue](https://github.com/wong-justin/vic/issues/1#issue-2586904982) if you want to help.
+Statically linked binaries (that bundle `chafa`) for x86-64 Linux can be built with the Dockerfile.
 
 ## Examples
 
@@ -51,6 +51,7 @@ vic video.mp4 --log log.txt
 ```
 vic <filepath> [-w <int, default 40>]
                [--dry-run]
+               [--log <filepath>]
                [--help|--version]
 ```
 
@@ -92,7 +93,7 @@ Here's a blog post: https://wonger.dev/posts/chafa-ffmpeg-progress
 
 My main focus for now is creating a separate UI thread and adding audio.
 
-I also need to fiddle with GitHub Actions and building static binaries.
+I also need to fiddle with GitHub Actions.
 
 There's several quality-of-life improvements to work on.
 
