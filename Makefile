@@ -35,6 +35,11 @@ roadmap:
 	@# simpler, but worse formatting: @rg TODO
 	@git ls-files | grep -v Makefile | xargs grep -h TODO | perl -pe 's/^[ \/]*//'
 
+.PHONY: build-static
+build-static:
+	podman --cgroup-manager=cgroupfs build .
+	@# podman cp $(podman create vicbuild):/app/target/release/vic ./vic_static_x86_64_linux
+
 .PHONY: demo
 demo:
 	@# TODO: fully automate obs recording (scenes, startup, splicing)

@@ -12,6 +12,20 @@ bindgen = "= 0.65.1"
 # https://stackoverflow.com/a/76443281
 #
 # even tho this upgraded bindgen requires rustc 1.70.1+
-# im using rustc 1.80.1 now, so it's ok
+# im using rustc >= 1.80.1 now, so it's ok
+#
+# TODO: make bindgen an optional build dependency, since average consumer doesn't need it
+
 pkg-config = "= 0.3"
-cc = "= 1.0.79"
+# could technically replace pkg-config:
+# https://users.rust-lang.org/t/how-to-make-a-sys-crate/13767/8
+#
+# "For linking I went with simply outputting cargo:rustc-link-lib= from build.rs,
+# with ability to set the library path with an environment variable (no pkg-config)
+# and with default path on Windows set to where the library installer
+# installs the libraries by default."
+
+[features]
+# mutally exclusive
+link-dynamic = []
+link-static = []

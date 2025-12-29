@@ -20,6 +20,11 @@ edition = "2021"
 name = "vic"
 path = "src/main.rs"
 
+[features]
+default = ["dynamic"]
+dynamic = ["chafa-sys/link-dynamic"]
+static = ["chafa-sys/link-static"]
+
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html
 [dependencies]
 chafa-sys = { path = "chafa-sys" }
