@@ -2,6 +2,11 @@
 build:
 	cargo build
 
+.PHONY: build-static
+build-static:
+	podman --cgroup-manager=cgroupfs build .
+	@# podman cp $(podman create vicbuild):/app/target/release/vic ./vic_static_x86_64_linux
+
 .PHONY: dev
 dev:
 	@# summary of potential livereload tools:
@@ -14,10 +19,13 @@ dev:
 	@# - bacon, for better error/warning messages
 	gaze $$(git ls-files) -r -c 'cargo run ./test/bbb_480p_24fps.avi --dry-run --log=/tmp/vic_log'
 
+.PHONY: test
+test: build generate-tests test-cli
+	mkdir -p test
+	cargo test
+
 .PHONY: install-tests
 install-tests:
-	@# TODO: install dependencies. for now, just install some test assets
-	mkdir -p test
 	@# download links taken from: http://bbb3d.renderfarming.net/download.html
 	@# be sure to follow redirects, since these links may change over the years
 	curl -o test/bbb_480p_24fps.avi -L http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi # liter, 220MB
@@ -55,11 +63,6 @@ test-cli: build
 roadmap:
 	@# simpler, but worse formatting: @rg TODO
 	@git ls-files | grep -v Makefile | xargs grep -h TODO | perl -pe 's/^[ \/]*//'
-
-.PHONY: build-static
-build-static:
-	podman --cgroup-manager=cgroupfs build .
-	@# podman cp $(podman create vicbuild):/app/target/release/vic ./vic_static_x86_64_linux
 
 .PHONY: demo
 demo:
