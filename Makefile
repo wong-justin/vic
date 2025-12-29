@@ -1,3 +1,7 @@
+.PHONY: build
+build:
+	cargo build
+
 .PHONY: dev
 dev:
 	@# summary of potential livereload tools:
@@ -21,14 +25,31 @@ install-tests:
 
 .PHONY: generate-tests
 generate-tests:
-	@# TODO: perhaps generate some test videos like:
+	@ffmpeg -f lavfi -i color=c=black:s=2x2:d=0.04 -frames:v 1 -vcodec libx264 test/1frame.mp4
+	@# TODO: generate other test videos like:
 	@# ffmpeg create frames containing text label for each frame (1,2,etc)
 	@# ffmpeg create long, colorful .mp4
-	@# ffmpeg create short .mp4 with audio
+	@# ffmpeg create video with audio
 	@# ffmpeg create equivalent .opus
 	@#
 	@# not quite as good as testing videos from the wild,
 	@# but that's what gh issues are for i guess
+
+.PHONY: test-cli
+test-cli: build
+	@# make sure i dont accidentally break the cli after an update
+	@(echo "these should work" > /dev/null) && \
+	timeout 0.5 ./target/debug/vic ./test/1frame.mp4 --log /dev/null || [ $$? -eq 124 ] && \
+	timeout 0.5 ./target/debug/vic ./test/1frame.mp4 -w 9999 || [ $$? -eq 124 ] && \
+	timeout 0.5 ./target/debug/vic ./test/1frame.mp4 -w 20 || [ $$? -eq 124 ] && \
+	timeout 0.5 ./target/debug/vic ./test/1frame.mp4 --dry-run || [ $$? -eq 124 ] && \
+	timeout 0.5 ./target/debug/vic --help > /dev/null || [ $$? -eq 124 ] && \
+	(echo "these should throw errors" > /dev/null) && \
+	(! timeout 0.5 ./target/debug/vic 2> /dev/null || [ $$? -eq 124 ]) && \
+	(! timeout 0.5 ./target/debug/vic test/1frame.mp4 -w 2> /dev/null || [ $$? -eq 124 ]) && \
+	(! timeout 0.5 ./target/debug/vic test/1frame.mp4 -w foo 2> /dev/null || [ $$? -eq 124 ]) && \
+	(! timeout 0.5 ./target/debug/vic test/1frame.mp4 -w 20.1 2> /dev/null || [ $$? -eq 124 ]) && \
+	echo "cli tests passed" || echo "cli tests failed"
 
 .PHONY: roadmap
 roadmap:

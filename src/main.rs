@@ -38,16 +38,17 @@ use crate::chafa::{Canvas, Config, SymbolMap, Symbols};
 pub struct Logs {}
 impl Logs {
     pub fn init(path: Option<std::path::PathBuf>) -> Result<(), Box<dyn Error>> {
-        let file = match path {
-            None => None,
-            Some(_path) => std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(_path)
-                .ok(),
+        match path {
+            None => LOGFILE.set(None),
+            Some(_path) => {
+                let file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(_path)?;
+                LOGFILE.set(Some(std::sync::Mutex::new(file)));
+                Ok(())
+            }
         };
-        // todo: fix error if file is none
-        LOGFILE.set(Some(std::sync::Mutex::new(file.unwrap())));
         Ok(())
     }
 
