@@ -1,14 +1,14 @@
 // suppress a lot of warnings, and even a couple errors, about C-style naming conventions
 //
-// there will still be warnings about unsafe FFI things like u128 ints 
+// there will still be warnings about unsafe FFI things like u128 ints
 // and dereferencing null pointers, but it still compiles so that's cool
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
 
-    
 // include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 include!("bindings.rs");
+
 #[cfg(test)]
 mod tests {
 
@@ -37,16 +37,16 @@ mod tests {
         unsafe {
             // https://hpjansson.org/chafa/ref/chafa-using.html
 
-            const PIX_WIDTH : i32 = 3;
-            const PIX_HEIGHT : i32 = 3;
-            const N_CHANNELS : i32 = 4;
-            const pixels : [u8; (PIX_WIDTH * PIX_HEIGHT * N_CHANNELS) as usize] = [
-                0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff,
-                0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff,
-                0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff
+            const PIX_WIDTH: i32 = 3;
+            const PIX_HEIGHT: i32 = 3;
+            const N_CHANNELS: i32 = 4;
+            const pixels: [u8; (PIX_WIDTH * PIX_HEIGHT * N_CHANNELS) as usize] = [
+                0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00,
+                0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff,
+                0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff,
             ];
-            let pixels_ptr : *const u8 = pixels.as_ptr();
-    
+            let pixels_ptr: *const u8 = pixels.as_ptr();
+
             let symbol_map = chafa_symbol_map_new();
             chafa_symbol_map_add_by_tags(symbol_map, ChafaSymbolTags_CHAFA_SYMBOL_TAG_ALL);
 
@@ -56,19 +56,21 @@ mod tests {
 
             let canvas = chafa_canvas_new(config);
 
-            chafa_canvas_draw_all_pixels(canvas,
-                                         ChafaPixelType_CHAFA_PIXEL_RGBA8_UNASSOCIATED,
-                                         pixels_ptr,
-                                         PIX_WIDTH,
-                                         PIX_HEIGHT,
-                                         PIX_WIDTH * N_CHANNELS);
+            chafa_canvas_draw_all_pixels(
+                canvas,
+                ChafaPixelType_CHAFA_PIXEL_RGBA8_UNASSOCIATED,
+                pixels_ptr,
+                PIX_WIDTH,
+                PIX_HEIGHT,
+                PIX_WIDTH * N_CHANNELS,
+            );
             // the gstring type, in rust:
             //
-            // pub struct _GString { 
+            // pub struct _GString {
             //      pub str_ : * mut gchar ,
             //      pub len : gsize ,
             //      pub allocated_len : gsize ,
-            // } 
+            // }
             //
             // and type gchar = std::os::raw::c_char
 
