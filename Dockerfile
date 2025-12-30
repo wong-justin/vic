@@ -48,7 +48,6 @@ ENV RUSTFLAGS="$RUSTFLAGS -lgcc"
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
-COPY chafa-sys/ ./chafa-sys/
 COPY src/ ./src/
 
 RUN cargo build --release --no-default-features --features static -vv
