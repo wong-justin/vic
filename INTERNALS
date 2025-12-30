@@ -14,184 +14,30 @@ hopefully there's no downsides
 ___
 builds
 
-the easier way to build is to link chafa dynamically, meaning chafa is already installed on the user's system.
+chafa bindings crate (with chafa-sys subcrate) details the build instructions and notes
+notes should be at:
+https://github.com/wong-justin/chafa-rust/blob/master/INTERNALS
+and also the readme
+the build instructions trickle down to this consumer project
+in summary:
+
+the easier way to build is to link chafa dynamically, meaning chafa (+glib dependency) should already be installed on the user's system.
 the chafa binary is not needed here, but rather the development libraries and header files.
 nothing in place to check specific chafa versions; i just went with the latest chafa version at the time, and hopefully it will work for everyone.
 
-chafa-sys/ is a sub-crate for creating rust bindings to chafa's C code.
-  src/chafa.rs is a higher-level Rust-style wrapper for lower-level C-style chafa-sys/bindings.rs 
-(eg. unsafe chafa_canvas_new() and unsafe chafa_canvas_unref()) are wrapped in high-level rust structs (eg. Canvas impl new() and drop())
-  mainly just hiding C pointers and exposing 
-chafa-sys/build.rs::link_dynamic() just calls `clang -I chafastuff`, really
-bindgen creates bindings file at target/debug/build/chafa-sys-abc123something/out/bindings.rs,
-  aka `concat!(env!("OUT_DIR"), "/bindings.rs")`
-  i should make this a cli script tho, since i decided to call bindgen once and commit it to the crate, rather than call bindgen for each build
-
-chafa-sys/wrapper.h just needs to exist for clang, and chafa-sys/lib.rs has a couple tests
-there's a lot of functions in bindings.rs that i will never need, like `g_get_user_state_dir`, but oh well
-i think i can trim the bindings by whitelisting only necessary functions
-
 static builds involve several new challenges, mostly glib
 glib like a third-party stdlib for C, including threading implementations, string handling, etc
-glib is chafa's only (external?) dependency
+glib is chafa's only (non-libc?) dependency
 building and/or statically linking glib is nontrivial
 thanks to mmulet's comment (https://github.com/wong-justin/vic/issues/1#issuecomment-3658269697),
 i was able to build vic on alpine with statically linked chafa and glib.
 (and apparently alpine's musl libc is better for static linking than the more common gnu libc)
 i needed extra commands to make it work:
-apk add musl-dev and gettext-static, appending -lgcc to $RUSTFLAGS, and telling rustc to look for libintl
+apk add musl-dev, appending -lgcc to $RUSTFLAGS, and telling rustc to look for libintl
 
-___
-leftover notes for any future work on build.rs:
-
-in dockerfile, to dynamically link alpine libintl:
-ENV RUSTFLAGS="-Clink-arg=-lintl"
-but we want static linking so we used ENV RUSTFLAGS="-l intl"
-a last-resort for dynamic linking at runtime may be:
-export LD_LIBRARY_PATH="/path/to/chafa/and/glib/on/my/machine:$LD_LIBRARY_PATH" ./vic
-"use a recent version of glib and build using meson. it has better/easier cross-compilation support than autotools."
-via https://stackoverflow.com/a/60599485
-*-dev C libraries usually contain static .a archives
-chafa build step complained about libdevtool2 or something like that, but i ignored by using the flag --without-tools
-good: bindgen automates binding creation from C headers
-bad: bindgen requires libclang, which I guess is supposed to come with llvm as well
-https://rust-lang.github.io/rust-bindgen/requirements.html
-helpful reference about how linking object files and libraries works in general: https://stackoverflow.com/a/29728671
-sometimes just listing all the .c files is enough to build with `cc`. example: https://github.com/kornelski/mozjpeg-sys/blob/384688f9c23e94ddeb353d414d45ede69768ec08/src/build.rs
-  but probs not with glib, because it's more complicated
-find . | grep '\.c$' | grep -v -e '/tests/ ' -e 'chafa/tools' -e 'glib/.gitlab-ci' -e 'glib/fuzzing'
-
-println!("cargo:rustc-flags=-l chafa -L /usr/local/lib/chafa");
-env::set_var("PKG_CONFIG_ALLOW_SYSTEM_CFLAGS", "1");
-env::set_var("LD_LIBRARY_PATH", "./vendor/glib");
-println!("cargo:rustc-link-search=./vendor/glib/");
-env::set_var("PKG_CONFIG_ALLOW_SYSTEM_CFLAGS", "1");
-let source_c_files = std::fs::read_dir("vendor/glib")
-    .unwrap()
-    .filter_map(|entry| {
-        let path = &entry.expect("couldn't unwrap entry inside vendor/").path();
-        let pathstr = path.to_str().expect("couldn't convert path to string");
-        match (
-            path.is_file() &
-            path.ends_with(".c") &
-            !pathstr.contains("tests/") &
-            !pathstr.contains("tools/") &
-            !pathstr.contains("fuzzing/")
-        ) {
-            true => Some(String::from(pathstr)),
-            false => None
-        }
-    });
-println!("cargo:rustc-env=AR=ar");
-println!("cargo:rustc-env=CC=cmd.exe /C zig cc");
-println!("cargo:rustc-env=CC_ENABLE_DEBUG_OUTPUT=1");
-maybe try manually compiling into objects, then manually linking/stuffing into archive?
-supposed to assemble at get_out_dir()
-https://github.com/rust-lang/cc-rs/blob/e6e29d873604a14912fa130f4c568bca5062d18a/src/lib.rs#L1277
-a library archive is a bunch of objects in a bucket i guess
-cc makes a library archive rather than command-line listing all object files because the command-line may have character limits.
-name the library archive "lib{actualname}.a"
-println!("cargo:rustc-link-search={}", env::var("OUT_DIR").unwrap());
-let bindings = bindgen::Builder::default()
-    .header("wrapper.h")
-    .clang_arg("-I./vendor/chafa/chafa/")
-    .clang_arg("-I./vendor/glib/glib/")
-    .generate()
-    .expect("Unable to generate bindings");
-
-
-to compile from C src:
-
-`cc` is an option
-tps://docs.rs/cc/latest/cc/#compile-time-requirements
-
-or
-
-cc-rs crate, which handles compiles C on multiple platforms into static archives
-75KB? https://crates.io/crates/cc
-more established
-
-or
-
-cargo-zigbuild, which uses zig as a great drop-in replacement for a C compiler
-35KB? https://crates.io/crates/cargo-zigbuild/0.17.3
-new-age but promising
-
-i couldn't get any of these to build glib from source, unfortunately
-
-___
-general guide to making a -sys crate:
-
-
-STEPS TO BUILD A RUST LIB WITH C BINDINGS / WRAP A C LIBRARY
-
-0) the C library needs to be installed, or built and installed.
-   apt install chafa wasn't available on my machine, so i had to clone and build chafa.
-   to build chafa, i needed to install glib, libdevtools, and a couple other things.
-   although the author said: "You could build it --without-tools,
-   then you don't need any loaders. The deps will then be glib-2.0 and freetype."
-   finally, chafa/autogen.sh, then make, then make install, worked
-   note: my chafa version was 1.14.0, and my glib version was 2.56.0
-
-1) a header file must exist in this rust project directory root.
-   probs best simply call it wrapper.h, with contents:
-   #include <chafa.h>
-
-   (https://rust-lang.github.io/rust-bindgen/tutorial-2.html)
-
-2) in this build script, we need to tell the build tools where to find the libraries.
-   there's a few ways to declare these library paths:
-
-   a) write the include/ path args by hand, eg:
-      .clang_arg("-I/usr/local/include/chafa")
-      ...
-      but different build environments will use different paths
-
-   b) use the tool pkg-config to find these paths automatically.
-      on the command line, that looks like:
-      pkg-config --cflags chafa
-      which outputs the string:
-      -I/usr/local/include/chafa -I/usr/local/lib...
-
-   c) I couldn't get this to work, but using either
-      println!("cargo:rustc-link-search=/path/to/lib")
-      or
-      println!("cargo:rustc-link-lib=chafa")
-      is supposed tell cargo about library locations
-
-   (https://rust-lang.github.io/rust-bindgen/tutorial-3.html)
-
-3) create src/lib.rs with contents:
-   include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-   also adding some #![allow(...)] directives to surpress warnings about C-syntax.
-
-   then cargo build should work. bindgen will create a bindings.rs file somewhere deep in target/
-
-4) verify that the layout, size, and alignment of FFI structs
-   matches what bindgen thinks they should be, by running cargo test
-
-   (https://rust-lang.github.io/rust-bindgen/tutorial-4.html)
-
-4.5) troubleshoot why some functions are an undefined reference?
-     (error while loading shared libraries: no such file or directory libchafa.so.0)
-     i guess the linking tools weren't finding /usr/local/lib/libchafa.so.0
-
-     EDIT - my solution was running the simple command `ldconfig`,
-     which updates the cache for shared libraries.
-     apparently it was not updated since i installed chafa on my system.
-
-5) create safe function wrappers around extern functions
-   using Rust idioms and exposing a safe, high-level interface
-
-   (https://doc.rust-lang.org/nomicon/ffi.html)
-   (https://medium.com/dwelo-r-d/using-c-libraries-in-rust-13961948c72a)
-
-6) consider whitelisting only necessary functions
-   (or blacklisting unused functions)
-   to reduce the size of the bindings file
-
-   (https://rust-lang.github.io/rust-bindgen/allowlisting.html)
+gh action can run dockerfile and release the resulting binary
+twould be nice to have diff dockerfiles for different platforms (windows, macos), but that will take some extra effort
+other nice-to-haves: sha256 binary checksum for users' peace of mind?
 
 ___
 src/tui.rs is a generic MVU TUI setup

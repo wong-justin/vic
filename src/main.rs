@@ -28,8 +28,9 @@ use crossterm::{
 
 mod tui;
 use crate::tui::{Program, UpdateResult};
-mod chafa;
-use crate::chafa::{Canvas, Config, SymbolMap, Symbols};
+// mod chafa;
+// use crate::chafa::{Canvas, Config, SymbolMap, Symbols};
+use chafa::{Canvas, Config, SymbolMap, Symbols};
 
 // --- LOGS --- //
 
