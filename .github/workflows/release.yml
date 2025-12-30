@@ -30,9 +30,15 @@ jobs:
           docker cp temp:/app/target/release/vic ./vic-${{ matrix.arch }}
           docker rm temp
 
+      - name: Tar with executable permissions
+        run: |
+          run: |
+            chmod +x vic-${{ matrix.arch }}
+            tar -czvf vic-${{ matrix.arch }}.tar.gz vic-${{ matrix.arch }}
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: vic-${{ matrix.arch }}
+          files: vic-${{ matrix.arch }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
