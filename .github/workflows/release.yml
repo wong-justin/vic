@@ -1,0 +1,40 @@
+name: Release Binary
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Static build for ${{ matrix.arch }}
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            platform: linux/amd64
+	  # hopefully one day:
+          # - arch: arm64
+          #   platform: linux/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build binary in container
+        run: |
+          docker build --platform ${{ matrix.platform }} --target builder -t builder .
+          docker create --name temp builder
+          docker cp temp:/app/target/release/vic ./vic-${{ matrix.arch }}
+          docker rm temp
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: vic-${{ matrix.arch }}
+	  draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
