@@ -21,11 +21,11 @@ dev:
 
 .PHONY: test
 test: build generate-tests test-cli
-	mkdir -p test
 	cargo test
 
 .PHONY: install-tests
 install-tests:
+	mkdir -p test
 	@# download links taken from: http://bbb3d.renderfarming.net/download.html
 	@# be sure to follow redirects, since these links may change over the years
 	curl -o test/bbb_480p_24fps.avi -L http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi # liter, 220MB
@@ -33,7 +33,8 @@ install-tests:
 
 .PHONY: generate-tests
 generate-tests:
-	@ffmpeg -f lavfi -i color=c=black:s=2x2:d=0.04 -frames:v 1 -vcodec libx264 test/1frame.mp4
+	mkdir -p test
+	ffmpeg -f lavfi -i color=c=black:s=2x2:d=0.04 -frames:v 1 -vcodec libx264 test/1frame.mp4
 	@# TODO: generate other test videos like:
 	@# ffmpeg create frames containing text label for each frame (1,2,etc)
 	@# ffmpeg create long, colorful .mp4
