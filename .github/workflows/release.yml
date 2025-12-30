@@ -15,7 +15,7 @@ jobs:
         include:
           - arch: x86_64
             platform: linux/amd64
-	  # hopefully one day:
+		  # hopefully one day:
           # - arch: arm64
           #   platform: linux/arm64
 
@@ -34,7 +34,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: vic-${{ matrix.arch }}
-	  draft: true
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
