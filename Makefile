@@ -20,19 +20,22 @@ dev:
 	gaze $$(git ls-files) -r -c 'cargo run ./test/bbb_480p_24fps.avi --dry-run --log=/tmp/vic_log'
 
 .PHONY: test
-test: build generate-tests test-cli
+test: build generate-test-videos test-cli
 	cargo test
 
-.PHONY: install-tests
-install-tests:
+.PHONY: download-test-videos
+download-test-videos:
 	mkdir -p test
 	@# download links taken from: http://bbb3d.renderfarming.net/download.html
 	@# be sure to follow redirects, since these links may change over the years
+	@#
+	@# TODO: investigate other test videos:
+	@# https://media.xiph.org/video/derf/vqeg.its.bldrdoc.gov/
 	curl -o test/bbb_480p_24fps.avi -L http://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_480p_surround-fix.avi # liter, 220MB
 	# curl -o test/bbb_1080p_60fps.mp4 -L http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_1080p_60fps_normal.mp4 # heavy, 350MB
 
-.PHONY: generate-tests
-generate-tests:
+.PHONY: generate-test-videos
+generate-test-videos:
 	mkdir -p test
 	ffmpeg -f lavfi -i color=c=black:s=2x2:d=0.04 -frames:v 1 -vcodec libx264 test/1frame.mp4
 	@# TODO: generate other test videos like:
