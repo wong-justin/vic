@@ -4,8 +4,8 @@ build:
 
 .PHONY: build-static
 build-static:
-	podman --cgroup-manager=cgroupfs build .
-	@# podman cp $(podman create vicbuild):/app/target/release/vic ./vic_static_x86_64_linux
+	podman --cgroup-manager=cgroupfs build --no-cache -t vicbuild .
+	podman --cgroup-manager=cgroupfs cp $$(podman create vicbuild):/app/target/release/vic ./vic_x86_64_linux
 
 .PHONY: dev
 dev:
