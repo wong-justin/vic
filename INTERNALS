@@ -1,3 +1,15 @@
+TODO: put version in excectuable name, both in local makefile and also gh action
+also update docs/readme about availability of static binaries
+and possibly decrement alpine rust version for the sake of compatiblity
+
+also update chafa-sys test for newer chafa version
+
+also make semi-automated deploy checklist, prompting me about container build, version number, style, steps to using github, etc
+essentially a pre-release checklist, like from my portfolio repo
+
+
+
+___
 vic depends on ffmpeg and chafa
 
 vic makes ffmpeg calls, assuming ffmpeg is on $PATH:
@@ -38,6 +50,36 @@ apk add musl-dev, appending -lgcc to $RUSTFLAGS, and telling rustc to look for l
 gh action can run dockerfile and release the resulting binary
 twould be nice to have diff dockerfiles for different platforms (windows, macos), but that will take some extra effort
 other nice-to-haves: sha256 binary checksum for users' peace of mind?
+
+TIL most executable downloads, incl zip files, often lose their unix permission metadata somewhere along the way
+thankfully .tar.gz files preserve the +x permission
+
+hpj says it would be good to depend on glibc rather than a kernel ABI because the glibc ABI is more stable, and then you could `nm vic | grep GLIBC` to see the latest glibc version required (and use that glibc release year as an estimate of the oldest supported linux-glibc-<arch>)
+https://github.com/wong-justin/vic/issues/1#issuecomment-3699068618
+
+another way to build statically, maybe:
+https://lobste.rs/c/c42stj
+https://gamesbymason.com/blog/2025/statically-linking-pipewire/
+
+also tools to investigate:
+objdump -p vic
+readelf -d vic
+which are kinda like ldd vic
+
+https://ruvi-d.medium.com/linux-binary-compatibility-explained-at-5-levels-of-difficulty-ffeab6235fc8
+https://miro.medium.com/v2/resize:fit:1400/format:webp/1*sNDz6x1Z9jt8F9WtiSYUDA.png
+
+compare earliest supported linux kernel of executable vs currently running linux kernel:
+`file vic` or `readelf n vic` (GNU/Linux 4.4.0)
+uname -r (6.18.2 on my personal machine)
+
+then compare earliest supported glibc to currently running glibc:
+...
+
+to link an updated library at runtime (like when your system has an outdated library depdencny and your executable won't run):
+LD_LIBRARY_PATH=/tmp/libthing-updated-ver/ ./my-executable
+and maybe to link updated glibc at runtime?:
+/tmp/my-updated-ld-linux-x86-64.so.2 --library-path /tmp/my-updated-glibcthings? ./my-executable
 
 ___
 src/tui.rs is a generic MVU TUI setup
@@ -167,6 +209,12 @@ chafa_src/tools/chafa/chafa.c::line2963+ while (is_animation)
 libavformat
 libavutil
 
+to learn more about video formats:
+https://gist.github.com/arch1t3cht/b5b9552633567fa7658deee5aec60453/
+
+maybe replace pico-args with:
+https://crates.io/crates/bpaf/0.9.20
+
 ___
 PRE-WORK RITUAL
 taken from:
@@ -189,3 +237,8 @@ magic project thesis:
 work log: date, time -- duration. -- entry point -- what got done?
 - oct 16, 9:30am -- ?? mins. -- task: work on adding UI thread and processing thread
 - ??, next entry point: ??
+
+refactor: more accurate makefile command names
+
+"make install" usually means put compiled program on system path
+"make download-something" is more clear about 
