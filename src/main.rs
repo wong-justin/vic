@@ -167,17 +167,23 @@ struct VideoMetadata {
 }
 
 fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box<dyn Error>> {
-    // note/TODO: if metdata is corrupted, ffprobe will report wrong data,
+    // run ffprobe, a sibling tool of ffmpeg, then parse output into VideoMetadata
+    //
+    // note/TODO: if metadata is corrupted, ffprobe will report wrong data,
     // but ffmpeg will have correct data
     // so maybe dont use ffprobe
     // https://stackoverflow.com/q/6239350#comment92617706_6239379
     //
-    // to learn:
+    // to learn more:
     // https://ffmpeg.org//ffprobe.html#Main-options
     // https://stackoverflow.com/a/24488789
-    //
-    // typical ffprobe output is a few sections:
-    //
+    let plaintext_metadata = _run_ffprobe_command(video_filepath)?;
+    return _parse_ffprobe_output(plaintext_metadata);
+}
+
+fn _run_ffprobe_command(video_filepath: &str) -> Result<String, Box<dyn Error>> {
+    // `ffprobe -show_entries stream:format` default output formatting is:
+    // ```
     // [FORMAT]
     // filename=abc
     // nb_streams=1
@@ -192,9 +198,14 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
     // [STREAM]
     // ...
     // [/STREAM]
+    // ```
     //
-    // but it's reformattable, ie. -print_format
-
+    // but after more specific -show_entries -select_stream -print_format, output becomes:
+    // ```
+    // width=643,height=528,r_frame_rate=30/1
+    // duration=ss.microseconds
+    // ```
+    // (note the newline)
     let probe_process = std::process::Command::new("ffprobe")
         // verbosity. i dont think this matters here
         // .args(["-v", "error"])
@@ -208,12 +219,12 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
             // and get the duration property from the [FORMAT] section
             //
             // note that [FORMAT]::duration seems reliable,
-            // while [STREAM]::duration is not reliable
+            // while [STREAM]::duration could be missing
             //
             // also note: the output could be in any order
             // https://ffmpeg.org//ffprobe.html#:~:text=the%20order%20of%20specification%20of%20the%20local%20section%20entries%20is%20not%20honored%20in%20the%20output%2C%20and%20the%20usual%20display%20order%20will%20be%20retained.
             "stream=width,height,r_frame_rate:
-            format=duration",
+                format=duration",
         ])
         //
         .args([
@@ -223,7 +234,7 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
             //
             // https://ffmpeg.org//ffprobe.html#default
             "compact=
-            print_section=0:item_sep=,",
+                print_section=0:item_sep=,",
         ])
         .arg(&video_filepath)
         .output()
@@ -231,21 +242,25 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
 
     let plain_output = String::from_utf8(probe_process.stdout)?;
     let err = String::from_utf8(probe_process.stderr)?;
+    log!("{}\n{}", plain_output, err);
+    return Ok(plain_output);
+}
 
-    // expecting cmd_output in the format:
+fn _parse_ffprobe_output(plaintext_metadata: String) -> Result<VideoMetadata, Box<dyn Error>> {
+    // given:
     // ```
     // width=643,height=528,r_frame_rate=30/1
     // duration=ss.microseconds
     // ```
-    // so replace newlines with commas
-    // then split on commas
-    // to get:
+    //
+    // replace newlines with comma, then split on commas to get:
     // ```
     // key=val,key=val,key=val
     // ```
+    //
+    // and parse into VideoMetadata struct
 
-    let single_line_output = plain_output.trim().replace('\n', ",");
-    log!("{}\n{}", single_line_output, err);
+    let single_line_output = plaintext_metadata.trim().replace('\n', ",");
 
     let mut ffprobe_properties = std::collections::HashMap::<&str, &str>::new();
 
@@ -262,30 +277,30 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
 
     let width = ffprobe_properties
         .get("width")
-        .ok_or(format!("failed to get width {}", plain_output))?
+        .ok_or(format!("failed to get width {}", plaintext_metadata))?
         .parse::<i32>()
-        .map_err(|e| format!("failed to parse {} {}", e, plain_output))?;
+        .map_err(|e| format!("failed to parse {} {}", e, plaintext_metadata))?;
     let height = ffprobe_properties
         .get("height")
-        .ok_or(format!("failed to get height {}", plain_output))?
+        .ok_or(format!("failed to get height {}", plaintext_metadata))?
         .parse::<i32>()
-        .map_err(|e| format!("failed to parse {} {}", e, plain_output))?;
+        .map_err(|e| format!("failed to parse {} {}", e, plaintext_metadata))?;
     let (frames, per_second) = ffprobe_properties
         .get("r_frame_rate")
-        .ok_or(format!("failed to get frame rate {}", plain_output))?
+        .ok_or(format!("failed to get frame rate {}", plaintext_metadata))?
         .split_once('/')
-        .ok_or(format!("failed to parse fps {}", plain_output))?;
+        .ok_or(format!("failed to parse fps {}", plaintext_metadata))?;
     let fps = (frames
         .parse::<f64>()
-        .map_err(|e| format!("failed to parse {} {}", e, plain_output))?)
+        .map_err(|e| format!("failed to parse {} {}", e, plaintext_metadata))?)
         / (per_second
             .parse::<f64>()
-            .map_err(|e| format!("failed to parse {} {}", e, plain_output))?);
+            .map_err(|e| format!("failed to parse {} {}", e, plaintext_metadata))?);
     let duration_secs = ffprobe_properties
         .get("duration")
-        .ok_or(format!("failed to get duration {}", plain_output))?
+        .ok_or(format!("failed to get duration {}", plaintext_metadata))?
         .parse::<Seconds>()
-        .map_err(|e| format!("failed to parse {} {}", e, plain_output))?;
+        .map_err(|e| format!("failed to parse {} {}", e, plaintext_metadata))?;
 
     log!("{} {} {} {}", width, height, fps, duration_secs);
 
@@ -296,6 +311,8 @@ fn get_ffprobe_video_metadata(video_filepath: &str) -> Result<VideoMetadata, Box
         seconds_per_frame: 1.0 / fps,
         duration_secs: duration_secs,
     });
+}
+
 }
 
 impl FrameIterator {
