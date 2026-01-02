@@ -1308,22 +1308,21 @@ fn _cmd_to_string(cmd: &std::process::Command) -> String {
 
 // make sure the brittle destructuring above does not accidentally break in the future
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn commands_are_properly_stringified() {
-        let mut sample_cmd = std::process::Command::new("ffmpeg");
-        sample_cmd
-            .arg("-ss")
-            .arg(format!("{:.3}", 60))
-            .arg("-to")
-            .arg(format!("{:.3}", 123.456789))
-            .arg("-i")
-            .arg("./filename/with spaces.mp4")
-            .arg("./filename/with spaces_0.mp4");
-        assert_eq!(_cmd_to_string(&sample_cmd), "ffmpeg -ss 60 -to 123.457 -i './filename/with spaces.mp4' './filename/with spaces_0.mp4'");
-    }
+#[test]
+fn test_ffmpeg_commands_are_properly_stringified() {
+    let mut sample_cmd = std::process::Command::new("ffmpeg");
+    sample_cmd
+        .arg("-ss")
+        .arg(format!("{:.3}", 60))
+        .arg("-to")
+        .arg(format!("{:.3}", 123.456789))
+        .arg("-i")
+        .arg("./filename/with spaces.mp4")
+        .arg("./filename/with spaces_0.mp4");
+    assert_eq!(
+        _cmd_to_string(&sample_cmd),
+        "ffmpeg -ss 60 -to 123.457 -i './filename/with spaces.mp4' './filename/with spaces_0.mp4'"
+    );
 }
 
 // #[tokio::main]
