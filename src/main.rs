@@ -157,6 +157,7 @@ struct FrameIterator {
     num_frames_rendered: u32, // for debugging
 }
 
+#[derive(Debug, PartialEq)]
 struct VideoMetadata {
     width_px: i32,  // pixels
     height_px: i32, // pixels
@@ -313,6 +314,27 @@ fn _parse_ffprobe_output(plaintext_metadata: String) -> Result<VideoMetadata, Bo
     });
 }
 
+#[cfg(test)]
+#[test]
+fn test_parsing_ffprobe_output_with_crlf() {
+    // i would use literal  instead of \r for closer fidelity to actual scenario
+    // but rust tooling didn't like that
+    let sample_ffprobe_output_with_windows_newline =
+        "width=1920,height=1080,r_frame_rate=60/1\r\nduration=1246.333333".to_string();
+
+    match _parse_ffprobe_output(sample_ffprobe_output_with_windows_newline) {
+        Ok(metadata) => assert_eq!(
+            metadata,
+            VideoMetadata {
+                width_px: 1920,
+                height_px: 1080,
+                fps: 60.0,
+                seconds_per_frame: 1.0 / 60.0,
+                duration_secs: 1246.333333
+            }
+        ),
+        Err(e) => panic!("{}", e),
+    }
 }
 
 impl FrameIterator {
