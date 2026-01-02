@@ -261,7 +261,11 @@ fn _parse_ffprobe_output(plaintext_metadata: String) -> Result<VideoMetadata, Bo
     //
     // and parse into VideoMetadata struct
 
-    let single_line_output = plaintext_metadata.trim().replace('\n', ",");
+    // note that ffprobe could return windows newlines
+    let single_line_output = plaintext_metadata
+        .trim()
+        .replace("\r\n", ",")
+        .replace('\n', ",");
 
     let mut ffprobe_properties = std::collections::HashMap::<&str, &str>::new();
 
