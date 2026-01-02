@@ -1164,7 +1164,7 @@ fn init() -> Result<Model, String> {
             // This is a limitation of the pargs library.
             // Commands like `vic -w 20 video.mp4` will fail, but not on this error.
             .map_err(|e| {
-                "failed to parse <filepath>. is the first cli argument the path to a video?"
+                "failed to parse <filepath>. is the first cli argument the path to a video?\nuse the format `vic [filepath] [options]`"
             })?
             .display()
             .to_string(),
